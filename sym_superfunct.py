@@ -179,9 +179,21 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
             self._Macdo_to_m.register_as_coercion()
             self._m_to_Macdo.register_as_coercion()
 
+            # Gqt
+            self._Gqt = self.Gqt()
+            self._gqt_to_p = self._Gqt.module_morphism(
+                self.morph_gqt_to_p, triangular='upper', invertible=True,
+                codomain=self._P, category=category)
+            self._p_to_gqt = ~(self._gqt_to_p)
+
+            self._gqt_to_p.register_as_coercion()
+            self._p_to_gqt.register_as_coercion()
+
     _shorthands = ['m', 'h', 'p', 'e']
 
+    @cached_method
     def morph_p_to_m(self, spart):
+        """Take a spart and return the monomial expression of the powersum."""
         Sparts = Superpartitions()
         if spart == _Superpartitions([[], []]):
             return self._M(1)
@@ -268,6 +280,28 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
         gns_plambda = [
             P.linear_combination(
                 (P(spart), 1/(P.z_lambda_alpha(spart, alpha)))
+                for spart in sparts)
+            for sparts in spart_sets_list]
+        the_prod = reduce(operator.mul, gns_plambda, 1)
+        return the_prod
+
+    def morph_gqt_to_p(self, spart):
+        """
+        Convert galpha_Lambda to powersums.
+        See compendium The one parameter of the ...
+        """
+        # We should somehow make sure that the ring is OK. 
+        P = self._P
+        if spart == _Superpartitions([[], []]):
+            return P(1)
+        ferm_list = [list(Superpartitions(k, 1)) for k in spart[0]]
+        boso_list = [list(Superpartitions(k, 0)) for k in spart[1]]
+        spart_sets_list = ferm_list + boso_list
+        BR = P.base_ring()
+        params = BR.gens()
+        gns_plambda = [
+            P.linear_combination(
+                (P(spart), 1/(P.z_lambda_qt(spart, parameters=params)))
                 for spart in sparts)
             for sparts in spart_sets_list]
         the_prod = reduce(operator.mul, gns_plambda, 1)
@@ -368,37 +402,40 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
         one = BR.one()
         p = source.realization_of().Powersum()
 
-        # Create a function which converts x and y to the power-sum basis and applies
-        # the scalar product.
-        pscalar = lambda x,y: p._apply_multi_module_morphism(p(x), p(y), lambda a,b:scalar(a), orthogonal=True)
- 
+        # Create a function which converts x and y to the power-sum basis
+        # and applies the scalar product.
+        pscalar = (lambda x, y:
+                   p._apply_multi_module_morphism(
+                       p(x), p(y), lambda a, b: scalar(a), orthogonal=True))
+
         if leading_coeff is None:
             leading_coeff = lambda x: one
- 
-        # We are going to be doing everything like we are in the upper-triangular case
-        # We list the partitions in "decreasing order" and work from the beginning forward.
-        # If we are in the lower-triangular case, then we shouldn't reverse the list
-        #l = Partitions_n(n).list()
+
+        # We are going to be doing everything like we are in the
+        # upper-triangular case. We list the partitions in "decreasing order"
+        # and work from the beginning forward.
+        # If we are in the lower-triangular case,
+        # then we shouldn't reverse the list.
         l = list(Superpartitions(n,m))
         l = _Superpartitions.sort_by_dominance(l)
         if upper_triangular:
             l.reverse()
- 
+
         # precomputed elements
         precomputed_elements = []
         cache = dict({})
         # Handle the initial case
-        cache[l[0]] = { l[0]: leading_coeff(l[0]) }
-        precomputed_elements.append(leading_coeff( l[0] )*source(l[0]))
+        cache[l[0]] = {l[0]: leading_coeff(l[0])}
+        precomputed_elements.append(leading_coeff(l[0])*source(l[0]))
         print("Computing...")
         total_loops = len(l)
         for i in range(1, len(l)):
             print(str(i)+" superpartitions computed out of " +
                   str(total_loops))
-            start = leading_coeff( l[i] )*source(l[i])
+            start = leading_coeff(l[i])*source(l[i])
             sub = 0
             for j in range(i):
-                sub += pscalar( start, precomputed_elements[j] ) / pscalar(precomputed_elements[j], precomputed_elements[j]) * precomputed_elements[j]
+                sub += pscalar(start, precomputed_elements[j])/pscalar(precomputed_elements[j], precomputed_elements[j]) * precomputed_elements[j]
             res = start - sub
             res = res.map_coefficients(lambda x: BR(SR(x)))
 
@@ -411,8 +448,8 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
                 cache[l[i]][l[j]] = res.coefficient(l[j])
         return cache
 
-
     class Bases(Category_realization_of_parent):
+        """General class for bases."""
         def super_categories(self):
             A = self.base()
             category = Algebras(A.base_ring())
@@ -435,10 +472,12 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
                 return self.monomial(_Superpartitions(list(args)))
 
             def one(self):
+                """The unit element."""
                 Sp = Superpartitions()
                 return self(Sp([[], []]))
 
             def is_multiplicative(self):
+                """Tells wether or not a basis is multiplicative."""
                 return isinstance(
                     self, SymSuperfunctionsAlgebra.MultiplicativeBasis)
 
@@ -500,6 +539,10 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
                     for spart in spart_coeff
                 )
 
+            def subs_coeff(self, sub_dict):
+                """Substitution for paremeters in the coefficients."""
+                return self.map_coefficients(lambda x: x.subs(sub_dict))
+
             def omega(self):
                 """Apply the omega involution to the expression."""
                 # Might be a better idea to define this in the morphisms.
@@ -530,6 +573,27 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
                             len(spart))*(-one)**(spart.bosonic_degree()
                                                  - len(spart[1]))))
                         for spart, coeff in self_p})
+                return parent(out)
+
+            def omega_qt(self, in_alpha=None):
+                parent = self.parent()
+                BR = parent.base_ring()
+                P = parent.realization_of().Powersum()
+                self_p = P(self)
+                q, t = BR.gens()
+                one = BR.one()
+                out = P._from_dict(
+                    {
+                        spart:
+                        BR(SR(
+                            coeff*q**(spart[0].degree())
+                            * (-one)**(spart.bosonic_degree() - len(spart[1]))
+                            * prod([(1-q**a_part)/(1-t**a_part)
+                                for a_part in spart[1]])
+                        ))
+                        for spart, coeff in self_p
+                    }
+                )
                 return parent(out)
 
             def scalar_product(self, other):
@@ -796,6 +860,13 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
                 self, A, prefix='galpha')
 
     galpha = Galpha
+
+    class Gqt(MultiplicativeBasis):
+        def __init__(self, A):
+            SymSuperfunctionsAlgebra.MultiplicativeBasis.__init__(
+                self, A, prefix='gqt')
+
+    gqt = Gqt
 
     class Jack(Basis):
         """ Class for the Jack superpolynomials. """
