@@ -488,7 +488,7 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
 
             def _apply_multi_module_morphism(self, x, y, f, orthogonal=False,
                                              parameters=None):
-                res=0
+                res = 0
                 BR = x.base_ring()
                 ZZa = ZZ['alpha'].fraction_field()
                 if orthogonal:
@@ -521,6 +521,7 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
 
             @classmethod
             def z_lambda_qt(cls, spart, parameters=None):
+                """Return the value of z_Lambda(q,t)."""
                 q, t = parameters
                 term1 = q**(spart[0].degree())
                 term2 = [(1-q**a_part)/(1-t**a_part) for a_part in spart[1]]
@@ -531,6 +532,7 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
             """Code common to elements of all bases of the algebras."""
 
             def collect(self):
+                """Simplify the coefficients."""
                 spart_coeff = self.monomial_coefficients()
                 parent = self.parent()
                 BR = self.base_ring()
@@ -561,7 +563,7 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
                 self_p = P(self)
                 alpha = in_alpha
                 if in_alpha is None:
-                    if hasattr(parent,"alpha"):
+                    if hasattr(parent, "alpha"):
                         alpha = parent.alpha
                     else:
                         alpha = BR(QQ['alpha'].gen())
@@ -875,6 +877,7 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
                 self, A, prefix='Palpha')
 
         def _gram_sector(self, n, m):
+            """Apply Gram Schmidt to solve for the sector."""
             Sym = self.realization_of()
             mono = Sym.Monomial()
             alpha = self.base_ring().gen()
@@ -884,63 +887,13 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
                                       upper_triangular=True)
             return cache
 
-        def _gen_jack_sector(self, n, m):
-            """ Generate Jacks over the monomial basis for sector n,m."""
-            # This is broken and slow
-            sparts = list(Superpartitions(n, m))
-            sparts = Superpartitions.sort_by_dominance(sparts)
-            number_of_unknwowns = len(sparts)-1
-            unknowns_str = ['a'+str(k) for k in range(number_of_unknwowns)]
-            gens_str = ['alpha'] + unknowns_str
-            coeffRing = QQ[gens_str].fraction_field()
-            all_gens = coeffRing.gens()
-            indets = list(all_gens[1:])
-            coeffRingOut = QQ['alpha'].fraction_field()
-            Symout = SymSuperfunctionsAlgebra(coeffRingOut)
-            M_out = Symout.Monomial()
-            Sym = SymSuperfunctionsAlgebra(coeffRing)
-            M = Sym.Monomial()
-            mySR = SR
-            SRvars = [mySR(x) for x in all_gens]
-            SRalpha = SRvars[0]
-            solve_for = SRvars[1:]
-            singRing = singular.ring('(0, alpha)',
-                                     str(tuple(indets)), 'dp')
-            singular.setring(singRing)
-            smallest_spart = sparts.pop()
-            Jacks = [M(smallest_spart)]
-            Jacks_out = [M_out(smallest_spart)]
-            while len(sparts):
-                spart = sparts.pop()
-
-                smallers = spart.get_smaller_sparts()
-                preJack = M(spart) + sum(indets[k]*M(smallers[k])
-                                         for k in range(len(smallers)))
-                indets_subset = indets[:len(smallers)]
-                real_solve_for = SRvars[1:(len(smallers)+1)]
-                scals = [preJack.scalar_alpha(Jack)
-                         for Jack in Jacks]
-                singular_scals = [singular(str(x)) for x in scals]
-                SRscals = [mySR(x.sage()) for x in singular_scals]
-                var_set = set(flatten([x.args() for x in SRscals]))
-
-                var_list = [SR(x) for x in var_set if str(x) != 'alpha']
-                # return [SRscals, solve_for]
-                SRsln = solve(SRscals, *var_list, solution_dict=True)
-                if len(SRsln) == 1:
-                    SRsln = SRsln[0]
-                new_dict = {str(x):SRsln[x] for x in SRsln}
-                coeffs = [coeffRing(new_dict[str(x)]) for x in real_solve_for]
-                coeffs_out = [coeffRingOut(new_dict[str(x)]) for x in real_solve_for]
-                
-                Jack = M(spart) + sum(coeffs[k]*M(smallers[k])
-                                      for k in range(len(smallers)))
-                Jack_out = M_out(spart) + sum(
-                    coeffs_out[k]*M_out(smallers[k]) for k in
-                    range(len(smallers)))
-                Jacks += [Jack]
-                Jacks_out += [Jack_out]
-            return Jacks_out
+        class Element(CombinatorialFreeModule.Element):
+            """Jack element class."""
+            def calc_norm(self):
+                BR = self.base_ring()
+                params = BR.gens_dict()
+                alpha = params['alpha']
+                pass
 
     class Macdonald(Basis):
         """Class for the Macdonald superpolynomials."""
