@@ -876,6 +876,22 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
             SymSuperfunctionsAlgebra.Basis.__init__(
                 self, A, prefix='Palpha')
 
+        @staticmethod
+        def calc_norm(spart, param='alpha'):
+            if param == 'alpha':
+                QQa = QQ['alpha'].fraction_field()
+                alpha = QQa.gen()
+            else:
+                alpha = param
+            coords = spart.bosonic_cells()
+            hooks = [
+                (spart.upper_hook_length(i, j, alpha) /
+                 spart.lower_hook_length(i, j, alpha))
+                for i, j in coords
+            ]
+            norm = reduce(operator.mul, hooks, 1)
+            return norm
+
         def _gram_sector(self, n, m):
             """Apply Gram Schmidt to solve for the sector."""
             Sym = self.realization_of()
@@ -889,11 +905,7 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
 
         class Element(CombinatorialFreeModule.Element):
             """Jack element class."""
-            def calc_norm(self):
-                BR = self.base_ring()
-                params = BR.gens_dict()
-                alpha = params['alpha']
-                pass
+            pass
 
     class Macdonald(Basis):
         """Class for the Macdonald superpolynomials."""

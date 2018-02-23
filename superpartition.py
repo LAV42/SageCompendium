@@ -281,8 +281,7 @@ class Superpartition(ClonableArray):
             Note that we use the convention that the first cell is (1,1)
         """
         spart_star = self.star()
-        parts = Partitions()
-        part = parts(list(spart_star))
+        part = Partition(list(spart_star))
         coordinates = part.cells()
         coordinates = [(x+1, y+1) for x, y in coordinates]
         return coordinates
@@ -293,8 +292,7 @@ class Superpartition(ClonableArray):
             Note that we use the convention that the first cell is (1,1)
         """
         spart_star = self.circle_star()
-        parts = Partitions()
-        part = parts(list(spart_star))
+        part = Partition(list(spart_star))
         coordinates = part.cells()
         coordinates = [(x+1, y+1) for x, y in coordinates]
         return coordinates
