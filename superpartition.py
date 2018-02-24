@@ -13,11 +13,14 @@ from sage.structure.richcmp import op_LT, op_LE, op_EQ, op_NE, op_GT, op_GE
 from collections import Counter
 from sage.functions.other import factorial
 from sage.misc.misc_c import prod
+from sage.combinat.partition import Partition
 
 
 class BosonicPartition(ClonableArray):
+    """Class for the standard partition."""
 
     def check(self):
+        """Sanity check."""
         if not all(k >= 0 for k in iter(self)):
             raise ValueError(
                 "The parts must greater than 0.")
@@ -63,6 +66,7 @@ class BosonicPartition(ClonableArray):
                 return False
 
     def degree(self):
+        """Return the degree of partition."""
         return sum(self)
 
     def conjugate(self):
@@ -76,8 +80,20 @@ class BosonicPartition(ClonableArray):
         B = BosonicPartitions()
         return B(conj_part)
 
+    def leg_length(self, *args):
+        """Return the leg length associated with coordinates."""
+        i, j = args
+        return Partition(list(self)).leg_length(i-1, j-1)
+
+    def arm_length(self, *args):
+        """Return the arm length associated with coordinates."""
+        i, j = args
+        return Partition(list(self)).arm_length(i-1, j-1)
+
 
 class BosonicPartitions(UniqueRepresentation, Parent):
+    """Class of the set of bosonic partitions. Parent class."""
+
     def __init__(self, degree=None, length=None):
         """Custom implemantation of Partitions of integer."""
         Parent.__init__(self, category=Sets())
@@ -258,6 +274,58 @@ class Superpartition(ClonableArray):
         new_list.sort(reverse=True)
         new_partition = BosonicPartition(BosonicPartitions(), new_list)
         return new_partition
+
+    def cells(self):
+        """Return the cells of the superpartition."""
+        """
+            Note that we use the convention that the first cell is (1,1)
+        """
+        spart_star = self.star()
+        part = Partition(list(spart_star))
+        coordinates = part.cells()
+        coordinates = [(x+1, y+1) for x, y in coordinates]
+        return coordinates
+
+    def all_cells(self):
+        """Return the cells of the superpartition, counting circles."""
+        """
+            Note that we use the convention that the first cell is (1,1)
+        """
+        spart_star = self.circle_star()
+        part = Partition(list(spart_star))
+        coordinates = part.cells()
+        coordinates = [(x+1, y+1) for x, y in coordinates]
+        return coordinates
+
+    def fermionic_cells(self):
+        """Return the cells that are fermionic."""
+        cells = self.cells()
+        cells_and_circles = self.all_cells()
+        circles = [x for x in cells_and_circles if x not in cells]
+        coords = [(i, jprime)
+                  for iprime, jprime in circles
+                  for i, j in circles
+                  if iprime > i
+                  ]
+        coords.sort()
+        return coords
+
+    def bosonic_cells(self):
+        """Return the cells that are bosonic."""
+        cells = self.cells()
+        fermionic_cells = self.fermionic_cells()
+        coords = [x for x in cells if x not in fermionic_cells]
+        return coords
+
+    def upper_hook_length(self, i, j, parameter):
+        leg = self.circle_star().leg_length(i, j)
+        arm = self.star().arm_length(i, j)
+        return leg + parameter*(arm + 1)
+
+    def lower_hook_length(self, i, j, parameter):
+        leg = self.star().leg_length(i, j)
+        arm = self.circle_star().arm_length(i, j)
+        return leg + 1 + parameter*arm
 
     def partition_pair(self):
         return [self.star(), self.circle_star()]
