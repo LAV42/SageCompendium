@@ -28,6 +28,14 @@ from sage.symbolic.assumptions import assume
 from sage.misc.flatten import flatten
 from sage.interfaces.singular import singular
 
+def super_init():
+    global QQqta
+    global Sym
+    global Sparts
+    QQqta = QQ['q','t','alpha'].fraction_field()
+    Sym = SymSuperfunctionsAlgebra(QQqta)
+    Sym.inject_shorthands()
+    Sparts = Superpartitions()
 
 def unique_permutations(seq):
     """
@@ -268,7 +276,7 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
         Convert galpha_Lambda to powersums.
         See compendium The one parameter of the ...
         """
-        # We should somehow make sure that the ring is OK. 
+        # We should somehow make sure that the ring is OK.
         P = self._P
         if spart == _Superpartitions([[], []]):
             return P(1)
@@ -290,7 +298,7 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
         Convert galpha_Lambda to powersums.
         See compendium The one parameter of the ...
         """
-        # We should somehow make sure that the ring is OK. 
+        # We should somehow make sure that the ring is OK.
         P = self._P
         if spart == _Superpartitions([[], []]):
             return P(1)
@@ -582,7 +590,10 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
                 BR = parent.base_ring()
                 P = parent.realization_of().Powersum()
                 self_p = P(self)
-                q, t = BR.gens()
+                params = BR.gens_dict()
+                q = params['q']
+                t = params['t']
+
                 one = BR.one()
                 out = P._from_dict(
                     {
@@ -634,7 +645,10 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
                     q = parent.q
                     t = parent.t
                 else:
-                    q, t = BR.gens()
+                    params = BR.gens_dict()
+                    q = params['q']
+                    t = params['t']
+
                 _zee_qt = P.z_lambda_qt
                 out = P._apply_multi_module_morphism(self_p, other_p,
                                                      _zee_qt,
@@ -877,7 +891,7 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
                 self, A, prefix='Palpha')
 
         @staticmethod
-        def calc_norm(spart, param='alpha'):
+        def calc_norm_inv(spart, param='alpha'):
             if param == 'alpha':
                 QQa = QQ['alpha'].fraction_field()
                 alpha = QQa.gen()
@@ -921,6 +935,30 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
                                       lambda sp: mono.z_lambda_qt(sp, (q,t)),
                                       upper_triangular=True)
             return cache
+
+        @staticmethod
+        def calc_norm_inv(spart, param='qt'):
+            if isinstance(spart, list):
+                spart = _Superpartitions(spart)
+            if param == 'qt':
+                QQqt = QQ['q', 't'].fraction_field()
+                q, t = QQqt.gens()
+            else:
+                print("Not implemented")
+                return "Err"
+            coords = spart.bosonic_cells()
+            ferm_degree = spart.fermionic_degree()
+            lambda_a_degree = add(spart[0])
+            prefactor = (-1)**(ferm_degree*(ferm_degree-1)/2)*1/(q**lambda_a_degree)
+            terms = [
+                ((1-(q**(spart.circle_star().arm_length(i, j))*
+                    t**(spart.star().leg_length(i,j)+1))) /
+                ((1-(q**(spart.star().arm_length(i, j)+1)*
+                    t**(spart.circle_star().leg_length(i,j))))))
+                for i, j in coords
+            ]
+            norm = prefactor*reduce(operator.mul, terms, 1)
+            return norm
 
 
 def normalize_coefficients(self, c):
