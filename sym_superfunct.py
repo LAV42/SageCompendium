@@ -313,7 +313,9 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
                 for spart in sparts)
             for sparts in spart_sets_list]
         the_prod = reduce(operator.mul, gns_plambda, 1)
-        return the_prod
+        ferm_deg = spart.fermionic_degree()
+        sign = (-1)**(ferm_deg*(ferm_deg-1)/2)
+        return sign*the_prod
 
     def morph_Jack_to_m(self, spart):
         """Return the monomial expansion of the Jack given spart."""
@@ -518,7 +520,9 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
             def z_lambda(spart, parameters=None):
                 """Return the usual z_lambda function."""
                 part_dict = Counter(list(spart[1]))
-                out = prod([
+                ferm_degree = spart.fermionic_degree()
+                sign = (-1)**(ferm_degree*(ferm_degree-1)/2)
+                out = sign*prod([
                     k**part_dict[k] * factorial(part_dict[k])
                     for k in part_dict.keys()])
                 return out
@@ -937,7 +941,7 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
             return cache
 
         @staticmethod
-        def calc_norm_inv(spart, param='qt'):
+        def calc_norm(spart, param='qt'):
             if isinstance(spart, list):
                 spart = _Superpartitions(spart)
             if param == 'qt':
@@ -948,13 +952,18 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
                 return "Err"
             coords = spart.bosonic_cells()
             ferm_degree = spart.fermionic_degree()
-            lambda_a_degree = add(spart[0])
-            prefactor = (-1)**(ferm_degree*(ferm_degree-1)/2)*1/(q**lambda_a_degree)
+            lambda_a_degree = sum(spart[0])
+            prefactor = (
+                            (-1)**(ferm_degree*(ferm_degree-1)/2) *
+                            (q**lambda_a_degree)
+                        )
             terms = [
-                ((1-(q**(spart.circle_star().arm_length(i, j))*
-                    t**(spart.star().leg_length(i,j)+1))) /
-                ((1-(q**(spart.star().arm_length(i, j)+1)*
-                    t**(spart.circle_star().leg_length(i,j))))))
+                (
+                    (1-(q**(spart.star().arm_length(i, j)+1) *
+                     t**(spart.circle_star().leg_length(i, j)))) /
+                    (1-(q**(spart.circle_star().arm_length(i, j)) *
+                     t**(spart.star().leg_length(i, j)+1)))
+                )
                 for i, j in coords
             ]
             norm = prefactor*reduce(operator.mul, terms, 1)
