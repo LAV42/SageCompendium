@@ -895,19 +895,25 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
                 self, A, prefix='Palpha')
 
         @staticmethod
-        def calc_norm_inv(spart, param='alpha'):
+        def calc_norm(spart, param='alpha'):
             if param == 'alpha':
                 QQa = QQ['alpha'].fraction_field()
                 alpha = QQa.gen()
             else:
                 alpha = param
+            # TODO depending on the convetion for the scalar
+            # product, might have to modify
+            ferm_degree = spart.fermionic_degree()
+            alpha_factor = alpha**ferm_degree
             coords = spart.bosonic_cells()
             hooks = [
-                (spart.upper_hook_length(i, j, alpha) /
-                 spart.lower_hook_length(i, j, alpha))
+                (
+                    spart.upper_hook_length(i, j, alpha) /
+                    spart.lower_hook_length(i, j, alpha)
+                )
                 for i, j in coords
             ]
-            norm = reduce(operator.mul, hooks, 1)
+            norm = alpha_factor*reduce(operator.mul, hooks, 1)
             return norm
 
         def _gram_sector(self, n, m):
@@ -932,24 +938,25 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
                 self, A, prefix='Pqt')
 
         def _gram_sector(self, n, m):
+            """Apply GramSchmidt to solve for whole sector."""
             Sym = self.realization_of()
             mono = Sym.Monomial()
             q, t = self.base_ring().gens()
             cache = Sym._gram_schmidt(n, m, mono,
-                                      lambda sp: mono.z_lambda_qt(sp, (q,t)),
+                                      lambda sp: mono.z_lambda_qt(sp, (q, t)),
                                       upper_triangular=True)
             return cache
 
         @staticmethod
         def calc_norm(spart, param='qt'):
+            """Return the norm of sMacdonald associated to spart."""
             if isinstance(spart, list):
                 spart = _Superpartitions(spart)
             if param == 'qt':
                 QQqt = QQ['q', 't'].fraction_field()
                 q, t = QQqt.gens()
             else:
-                print("Not implemented")
-                return "Err"
+                raise ValueError("Innapropriate coefficient ring.")
             coords = spart.bosonic_cells()
             ferm_degree = spart.fermionic_degree()
             lambda_a_degree = sum(spart[0])
