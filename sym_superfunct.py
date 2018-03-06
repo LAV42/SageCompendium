@@ -1,11 +1,11 @@
 from sage.structure.parent import Parent
 from sage.structure.unique_representation import UniqueRepresentation
 from sage.combinat.free_module import CombinatorialFreeModule
-from sage.categories.all import AlgebrasWithBasis
+# from sage.categories.all import AlgebrasWithBasis
 from sage.categories.all import Algebras
 from sage.categories.realizations import Category_realization_of_parent
 from sage.misc.bindable_class import BindableClass
-from superpartition import Superpartitions, Superpartition, FermionicPartition
+from superpartition import Superpartitions, FermionicPartition
 from superpartition import _Superpartitions
 # from sage.combinat.partition import Partitions, Partition
 from sage.misc.misc import uniq
@@ -18,24 +18,27 @@ from sage.functions.other import factorial
 from sage.rings.rational_field import QQ
 from sage.misc.cachefunc import cached_method
 import six
-import itertools
+# import itertools
 from sage.symbolic.ring import SR
-from sage.symbolic.relation import solve
+# from sage.symbolic.relation import solve
 from sage.rings.all import Integer
 from sage.arith.all import gcd, lcm
-from sage.rings.fraction_field import is_FractionField
-from sage.symbolic.assumptions import assume
-from sage.misc.flatten import flatten
-from sage.interfaces.singular import singular
+# from sage.symbolic.assumptions import assume
+# from sage.misc.flatten import flatten
+from sage.structure.sage_object import load, save
+
 
 def super_init():
+    """Inject the basis and the coeff ring."""
     global QQqta
     global Sym
     global Sparts
-    QQqta = QQ['q','t','alpha'].fraction_field()
+    QQqta = QQ['q', 't', 'alpha'].fraction_field()
+    print("Defining QQqta as " + str(QQqta))
     Sym = SymSuperfunctionsAlgebra(QQqta)
     Sym.inject_shorthands()
     Sparts = Superpartitions()
+
 
 def unique_permutations(seq):
     """
@@ -263,7 +266,7 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
         ferm_list = [list(Superpartitions(k, 1)) for k in spart[0]]
         boso_list = [list(Superpartitions(k, 0)) for k in spart[1]]
         spart_sets_list = ferm_list + boso_list
-        #spart_sets_list.reverse()
+        # spart_sets_list.reverse()
         hns_plambda = [
             P.linear_combination(
                 (P(spart), QQ(P.z_lambda(spart)**(-1))) for spart in sparts)
@@ -426,7 +429,7 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
         # and work from the beginning forward.
         # If we are in the lower-triangular case,
         # then we shouldn't reverse the list.
-        l = list(Superpartitions(n,m))
+        l = list(Superpartitions(n, m))
         l = _Superpartitions.sort_by_dominance(l)
         if upper_triangular:
             l.reverse()
