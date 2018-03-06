@@ -16,6 +16,7 @@ import operator
 from collections import Counter
 from sage.functions.other import factorial
 from sage.rings.rational_field import QQ
+from sage.rings.infinity import Infinity
 from sage.misc.cachefunc import cached_method
 import six
 # import itertools
@@ -113,6 +114,8 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
                         category=my_cat.WithRealizations())
         self._Jack_m_cache = {}
         self._Macdo_m_cache = {}
+        self._Schur_m_cache = {}
+        self._SchurBar_m_cache = {}
         # attribute intialization
         # Construction of morphisms between bases
         # ...
@@ -120,6 +123,8 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
         self._P = self.Powersum()
         self._H = self.Homogeneous()
         self._E = self.Elementary()
+        self._Schur = self.Schur()
+        self._SchurBar = self.SchurBar()
         category = self.Bases()
 
         # These implementation are a bit slow.
@@ -150,6 +155,24 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
         self._p_to_h.register_as_coercion()
         self._e_to_m.register_as_coercion()
         self._m_to_e.register_as_coercion()
+
+        # Schur Basis
+        self._Schur_to_m = self._Schur.module_morphism(
+            self.morph_Schur_to_m, triangular='upper', invertible=True,
+            codomain=self._M, category=category)
+
+        self._SchurBar_to_m = self._SchurBar.module_morphism(
+            self.morph_SchurBar_to_m, triangular='upper', invertible=True,
+            codomain=self._M, category=category)
+
+        self._Schur_to_m.register_as_coercion()
+        self._SchurBar_to_m.register_as_coercion()
+        try:
+            self._Schur_m_cache = load('./super_cache/Schur_m')
+            self._SchurBar_m_cache = load('./super_cache/SchurBar_m')
+        except:
+            self._Schur_m_cache = dict({})
+            self._SchurBar_m_cache = dict({})
 
         # One parameter bases
         if 'alpha' in some_ring.variable_names():
@@ -362,6 +385,122 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
         out = M.linear_combination(mono_coeff)
         return out
 
+    @staticmethod
+    def _schur_qt_limit(coeff, lim):
+        # First, if the coefficient is not a polynomial in either
+        # q or t we don't have to do anything
+        if coeff in QQ:
+            return coeff
+
+        # Now we must extract the ring from the coeff
+        BR = coeff.parent()
+        # This is a dictionnary with q, t and alpha
+        parameters = BR.gens_dict()
+        q = parameters['q']
+        t = parameters['t']
+
+        # Now we need to convert our coefficient to the symbolic ring
+        coeff_SR = SR(coeff)
+        # We also need a version of the parameters on the symbolic ring
+        q_SR = SR(q)
+        t_SR = SR(t)
+
+        # We can now do the substitution since it is allowed on the 
+        # symbolic ring
+        coeff_SR_q = coeff_SR.subs({q_SR: t_SR})
+
+        # And here, one must understand that the limit is computed
+        # by GAP and that the limit argument is sent by sage as a
+        # string. So instead of writing t_SR = 1, we must write 
+        # t = 1 since t_SR is represented as the string 't' 
+        # in the equations
+        coeff_lim = coeff_SR_q.limit(t=lim)
+
+        return coeff_lim
+
+    def morph_Schur_to_m(self, spart):
+        """Return the monomial expansion of the Schur given spart."""
+        if spart == _Superpartitions([[], []]):
+            return self._M(1)
+        sector = spart.sector()
+        Schur_m_cache = self._Schur_m_cache
+        M = self._M
+        if sector in Schur_m_cache:
+            the_dict = Schur_m_cache[sector][spart]
+        else:
+            print("The expansion of this Schur superpolynomial" +
+                  " was not precomputed.")
+
+            def schur_case(coeff):
+                return SymSuperfunctionsAlgebra._schur_qt_limit(coeff, 0)
+
+            # We define everything we need to obtain the Schur
+            # from the monomial function
+            _QQqt = QQ['q', 't'].fraction_field()
+            _Symqt = SymSuperfunctionsAlgebra(_QQqt)
+            _Macdo = _Symqt.Macdonald()
+            _mono = _Symqt.Monomial()
+
+            # To update the cache, we have to compute the whole 
+            # sector. 
+            sparts = Superpartitions(*sector)
+            sect_dict = {
+                a_spart:
+                (_mono(_Macdo(a_spart))
+                 ).map_coefficients(schur_case).monomial_coefficients()
+                for a_spart in sparts
+            }
+
+            self._update_cache(sector, sect_dict, which_cache='Schur_m')
+            the_dict = sect_dict[spart]
+        spart_coeff = the_dict.items()
+        mono_coeff = ((M(a_spart), coeff)
+                      for a_spart, coeff in spart_coeff)
+        out = M.linear_combination(mono_coeff)
+        return out
+
+    def morph_SchurBar_to_m(self, spart):
+        """Return the monomial expansion of the Schur given spart."""
+        if spart == _Superpartitions([[], []]):
+            return self._M(1)
+        sector = spart.sector()
+        Schur_m_cache = self._SchurBar_m_cache
+        M = self._M
+        if sector in Schur_m_cache:
+            the_dict = Schur_m_cache[sector][spart]
+        else:
+            print("The expansion of this Schur superpolynomial" +
+                  " was not precomputed.")
+
+            def schurbar_case(coeff):
+                return SymSuperfunctionsAlgebra._schur_qt_limit(
+                    coeff, Infinity)
+
+            # We define everything we need to obtain the Schur
+            # from the monomial function
+            _QQqt = QQ['q', 't'].fraction_field()
+            _Symqt = SymSuperfunctionsAlgebra(_QQqt)
+            _Macdo = _Symqt.Macdonald()
+            _mono = _Symqt.Monomial()
+
+            # To update the cache, we have to compute the whole 
+            # sector. 
+            sparts = Superpartitions(*sector)
+            sect_dict = {
+                a_spart:
+                (_mono(_Macdo(a_spart))
+                 ).map_coefficients(schurbar_case).monomial_coefficients()
+                for a_spart in sparts
+            }
+
+            self._update_cache(sector, sect_dict, which_cache='SchurBar_m')
+            the_dict = sect_dict[spart]
+        spart_coeff = the_dict.items()
+        mono_coeff = ((M(a_spart), coeff)
+                      for a_spart, coeff in spart_coeff)
+        out = M.linear_combination(mono_coeff)
+        return out
+
     def _update_cache(self, sector, cache_extension, which_cache=None):
         if which_cache == 'Jack_m':
             self._Jack_m_cache[sector] = cache_extension
@@ -369,6 +508,12 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
         if which_cache == 'Macdo_m':
             self._Macdo_m_cache[sector] = cache_extension
             save(self._Macdo_m_cache, filename='./super_cache/Macdo_m')
+        if which_cache == 'Schur_m':
+            self._Schur_m_cache[sector] = cache_extension
+            save(self._Macdo_m_cache, filename='./super_cache/Schur_m')
+        if which_cache == 'SchurBar_m':
+            self._SchurBar_m_cache[sector] = cache_extension
+            save(self._Macdo_m_cache, filename='./super_cache/SchurBar_m')
 
     def a_realization(self):
         """Return a realization."""
@@ -499,6 +644,8 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
                        str(self._realization_name()) + " basis")
                 return out
 
+            # TODO Implement this functions in a much faster way
+            # There is no need for a for loop here.
             def _apply_multi_module_morphism(self, x, y, f, orthogonal=False,
                                              parameters=None):
                 res = 0
@@ -827,6 +974,22 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
 
     m = Monomial
 
+    class Schur(Basis):
+        """Class of the type I super Schur."""
+
+        def __init(self, A):
+            """Initiate the combinatorial module."""
+            SymSuperfunctionsAlgebra.Basis.__init__(
+                self, A, prefix='s')
+
+    class SchurBar(Basis):
+        """Class of the type I super Schur."""
+
+        def __init(self, A):
+            """Initiate the combinatorial module."""
+            SymSuperfunctionsAlgebra.Basis.__init__(
+                self, A, prefix='sbar')
+
     class MultiplicativeBasis(Basis):
         def __init__(self, A, **kwargs):
             SymSuperfunctionsAlgebra.Basis.__init__(
@@ -923,7 +1086,7 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
             """Apply Gram Schmidt to solve for the sector."""
             Sym = self.realization_of()
             mono = Sym.Monomial()
-            alpha = self.base_ring().gen()
+            alpha = self.base_ring().gens_dict()['alpha']
             cache = Sym._gram_schmidt(n, m, mono,
                                       lambda sp: part_scalar_jack(sp, sp,
                                                                   alpha),
@@ -944,7 +1107,8 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
             """Apply GramSchmidt to solve for whole sector."""
             Sym = self.realization_of()
             mono = Sym.Monomial()
-            q, t = self.base_ring().gens()
+            params = self.base_ring().gens_dict()
+            q, t = [params['q'], params['t']]
             cache = Sym._gram_schmidt(n, m, mono,
                                       lambda sp: mono.z_lambda_qt(sp, (q, t)),
                                       upper_triangular=True)
