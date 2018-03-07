@@ -14,6 +14,7 @@ from collections import Counter
 from sage.functions.other import factorial
 from sage.misc.misc_c import prod
 from sage.combinat.partition import Partition
+from sage.misc.cachefunc import cached_function, cached_method
 
 
 class BosonicPartition(ClonableArray):
@@ -139,21 +140,7 @@ class BosonicPartitions(UniqueRepresentation, Parent):
         if parta.degree() != partb.degree():
             return 'Non-comparable'
         else:
-            partial_sum_a = [
-                sum(parta[:k + 1]) for k in range(len(parta))]
-            partial_sum_b = [
-                sum(partb[:k + 1]) for k in range(len(partb))]
-        min_length = min(len(partial_sum_a), len(partial_sum_b))
-        comparing = [
-            partial_sum_a[x] - partial_sum_b[x] for x in range(min_length)]
-        compare_a = [x >= 0 for x in comparing]
-        compare_b = [x <= 0 for x in comparing]
-        if all(compare_a):
-            out = '>'
-        elif all(compare_b):
-            out = '<'
-        else:
-            out = 'Non-comparable'
+            out = _compare_tuples(tuple(parta), tuple(partb))
         return out
 
 
@@ -234,6 +221,9 @@ class FermionicPartitions(UniqueRepresentation, Parent):
                 yield self.element_class(self, new_partition)
 
 
+_BosonicPartitions = BosonicPartitions()
+
+
 class Superpartition(ClonableArray):
     def __init__(self, parent, lst):
         Fp = FermionicPartitions()
@@ -243,6 +233,7 @@ class Superpartition(ClonableArray):
             bosonic_list = [x for x in bosonic_list if x != 0]
         spart = [Fp(lst[0]), Bp(bosonic_list)]
         ClonableArray.__init__(self, parent, spart)
+        self._partition_pair = self.partition_pair()
 
     def check(self):
         if len(list(self)) != 2:
@@ -259,7 +250,11 @@ class Superpartition(ClonableArray):
         new_spart = S([ferm_part, bos_part])
         return [thesign, new_spart]
 
+    def __hash__(self):
+        return hash((tuple(self[0]), tuple(self[1])))
+
     def __len__(self):
+        """Return the length of the spart."""
         return len(self[0]) + len(self[1])
 
     def star(self):
@@ -268,7 +263,7 @@ class Superpartition(ClonableArray):
         new_spart.sort(reverse=True)
         while 0 in new_spart:
             new_spart.remove(0)
-        new_spart = BosonicPartition(BosonicPartitions(), new_spart)
+        new_spart = _BosonicPartitions(new_spart)
         return new_spart
 
     def circle_star(self):
@@ -277,7 +272,7 @@ class Superpartition(ClonableArray):
         new_bos = list(self[1])
         new_list = new_ferm + new_bos
         new_list.sort(reverse=True)
-        new_partition = BosonicPartition(BosonicPartitions(), new_list)
+        new_partition = _BosonicPartitions(new_list)
         return new_partition
 
     def cells(self):
@@ -515,8 +510,8 @@ class Superpartitions(UniqueRepresentation, Parent):
                 fermionic_parts += [new_star[k]]
             else:
                 raise Exception("This should not happen.")
-        sparts = Superpartitions()
-        return sparts([fermionic_parts, bosonic_parts])
+        # sparts = Superpartitions()
+        return _Superpartitions([fermionic_parts, bosonic_parts])
 
     @staticmethod
     def sort_by_dominance(spart_list):
@@ -556,13 +551,13 @@ class Superpartitions(UniqueRepresentation, Parent):
                 bosonic.append(value)
             elif type == 'circle':
                 fermionic.append(value)
-        return Superpartitions()([fermionic, bosonic])
+        return _Superpartitions([fermionic, bosonic])
 
     @staticmethod
     def compare_dominance(left, right):
         """Return either >, <, == or Non-comparable."""
-        left_pair = left.partition_pair()
-        right_pair = right.partition_pair()
+        left_pair = left._partition_pair
+        right_pair = right._partition_pair
         if list(left) == list(right):
             out = "=="
         elif left.sector() == right.sector():
@@ -575,6 +570,28 @@ class Superpartitions(UniqueRepresentation, Parent):
         else:
             out = "Non-comparable"
         return out
+
+
+# Hack so that caching works with different instances. 
+@cached_function
+def _compare_tuples(parta, partb):
+    """Function for cachable dominance comparision."""
+    partial_sum_a = [
+        sum(parta[:k + 1]) for k in range(len(parta))]
+    partial_sum_b = [
+        sum(partb[:k + 1]) for k in range(len(partb))]
+    min_length = min(len(partial_sum_a), len(partial_sum_b))
+    comparing = [
+        partial_sum_a[x] - partial_sum_b[x] for x in range(min_length)]
+    compare_a = [x >= 0 for x in comparing]
+    compare_b = [x <= 0 for x in comparing]
+    if all(compare_a):
+        out = '>'
+    elif all(compare_b):
+        out = '<'
+    else:
+        out = 'Non-comparable'
+    return out
 
 
 _Superpartitions = Superpartitions()

@@ -644,21 +644,23 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
                        str(self._realization_name()) + " basis")
                 return out
 
-            # TODO Implement this functions in a much faster way
-            # There is no need for a for loop here.
             def _apply_multi_module_morphism(self, x, y, f, orthogonal=False,
                                              parameters=None):
+                """Apply function to pair of element of expr, ie scalarprod."""
                 res = 0
-                BR = x.base_ring()
-                ZZa = ZZ['alpha'].fraction_field()
+                # BR = x.base_ring()
                 if orthogonal:
-                    for mono_x, coeff_x in six.iteritems(x._monomial_coefficients):
-                        if mono_x not in y._monomial_coefficients:
-                            continue
-                        else:
-                            coeff_y = y._monomial_coefficients[mono_x]
-                            res += SR(coeff_x*coeff_y*f(mono_x, parameters))
-                    return BR(res)
+                    coeffx = x.monomial_coefficients()
+                    coeffy = y.monomial_coefficients()
+                    spartx = set(coeffx.keys())
+                    sparty = set(coeffy.keys())
+                    sparts_set = spartx.intersection(sparty)
+                    scals = {spart: f(spart, parameters)
+                             for spart in sparts_set}
+                    coeffs = [coeffx[spart]*coeffy[spart]*scals[spart]
+                              for spart in sparts_set]
+                    out = sum(coeffs)
+                    return out
                 else:
                     print('not orthognal')
                     for mono_x, coeff_x in six.iteritems(x._monomial_coefficients):
@@ -763,6 +765,7 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
                 )
                 return parent(out)
 
+            @cached_method
             def scalar_product(self, other):
                 P = self.parent().realization_of().Powersum()
                 self_p = P(self)
