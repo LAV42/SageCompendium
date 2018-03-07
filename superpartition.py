@@ -80,6 +80,11 @@ class BosonicPartition(ClonableArray):
         B = BosonicPartitions()
         return B(conj_part)
 
+    def terminal_diagram(self):
+        sparts = Superpartitions()
+        to_spart = sparts([[], list(self)])
+        to_spart.terminal_diagram()
+
     def leg_length(self, *args):
         """Return the leg length associated with coordinates."""
         i, j = args
