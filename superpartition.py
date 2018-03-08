@@ -594,4 +594,5 @@ def _compare_tuples(parta, partb):
     return out
 
 
+# Create an instance of superpartitions
 _Superpartitions = Superpartitions()

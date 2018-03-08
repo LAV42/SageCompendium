@@ -228,7 +228,7 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
     @cached_method
     def morph_p_to_m(self, spart):
         """Take a spart and return the monomial expression of the powersum."""
-        Sparts = Superpartitions()
+        Sparts = _Superpartitions
         if spart == _Superpartitions([[], []]):
             return self._M(1)
         ferm_list = [
