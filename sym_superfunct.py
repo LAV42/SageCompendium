@@ -171,13 +171,20 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
 
         self._SchurStar_to_SchurBar = self._SchurStar.module_morphism(
             self.morph_SchurStar_to_SchurBar,
-            triangular='upper', invertible=True,
+            # triangular='upper', invertible=True,
             codomain=self._SchurBar, category=category)
 
         self._SchurBarStar_to_Schur = self._SchurBarStar.module_morphism(
             self.morph_SchurBarStar_to_Schur,
-            triangular='upper', invertible=True,
+            # triangular='upper', invertible=True,
             codomain=self._Schur, category=category)
+
+        self._Schur_to_SchurBarStar = self._Schur.module_morphism(
+            self.morph_Schur_to_SchurBarStar,
+            codomain=self._SchurBarStar, category=category)
+        self._SchurBar_to_SchurStar = self._SchurBar.module_morphism(
+            self.morph_SchurBar_to_SchurStar,
+            codomain=self._SchurStar, category=category)
 
         self._Schur_to_m.register_as_coercion()
         self._m_to_Schur.register_as_coercion()
@@ -185,6 +192,12 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
         self._m_to_SchurBar.register_as_coercion()
         self._SchurStar_to_SchurBar.register_as_coercion()
         self._SchurBarStar_to_Schur.register_as_coercion()
+        # Not yet working 
+        # TODO Solve the following, the problem resides in that 
+        # we don't have coercion from SchurBarStar or SchurStar
+        # back from powersum. 
+        self._Schur_to_SchurBarStar.register_as_coercion()
+        self._SchurBar_to_SchurStar.register_as_coercion()
         try:
             self._Schur_m_cache = load('./super_cache/Schur_m')
             self._SchurBar_m_cache = load('./super_cache/SchurBar_m')
@@ -534,6 +547,14 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
         s_star = (-1)**(ferm_deg*(ferm_deg-1)/2)*omega_sbar
         return s_star
 
+    def morph_SchurBar_to_SchurStar(self, spart):
+        """Return the monomial expansion of the dual Schur given a spart."""
+        sstar_lambdaprime = self._SchurStar(spart.conjugate())
+        omega_sstar = sstar_lambdaprime.omega()
+        ferm_deg = spart.fermionic_degree()
+        s_bar = (-1)**(ferm_deg*(ferm_deg-1)/2)*omega_sstar
+        return s_bar
+
     def morph_SchurBarStar_to_Schur(self, spart):
         """Return the monomial expansion of the dual Schur given a spart."""
         s_lambdaprime = self._Schur(spart.conjugate())
@@ -541,6 +562,14 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
         ferm_deg = spart.fermionic_degree()
         sbar_star = (-1)**(ferm_deg*(ferm_deg-1)/2)*omega_s
         return sbar_star
+
+    def morph_Schur_to_SchurBarStar(self, spart):
+        """Return the monomial expansion of the dual Schur given a spart."""
+        s_lambdaprime = self._SchurBarStar(spart.conjugate())
+        omega_s = s_lambdaprime.omega()
+        ferm_deg = spart.fermionic_degree()
+        s = (-1)**(ferm_deg*(ferm_deg-1)/2)*omega_s
+        return s
 
     def _update_cache(self, sector, cache_extension, which_cache=None):
         """Write to disk the updated cache of an object."""
