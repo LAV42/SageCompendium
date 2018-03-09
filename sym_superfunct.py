@@ -328,10 +328,10 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
         boso_list = [list(Superpartitions(k, 0)) for k in spart[1]]
         spart_sets_list = ferm_list + boso_list
         BR = P.base_ring()
-        alpha = BR.gen()
+        alpha = BR.gens_dict()['alpha']
         gns_plambda = [
             P.linear_combination(
-                (P(spart), 1/(P.z_lambda_alpha(spart, alpha)))
+                (P(spart), BR(1/(P.z_lambda_alpha(spart, alpha))))
                 for spart in sparts)
             for sparts in spart_sets_list]
         the_prod = reduce(operator.mul, gns_plambda, 1)
@@ -344,6 +344,7 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
         """
         # We should somehow make sure that the ring is OK.
         P = self._P
+        BR = P.base_ring()
         if spart == _Superpartitions([[], []]):
             return P(1)
         ferm_list = [list(Superpartitions(k, 1)) for k in spart[0]]
@@ -353,7 +354,7 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
         params = BR.gens()
         gns_plambda = [
             P.linear_combination(
-                (P(spart), 1/(P.z_lambda_qt(spart, parameters=params)))
+                (P(spart), BR(1/(P.z_lambda_qt(spart, parameters=params))))
                 for spart in sparts)
             for sparts in spart_sets_list]
         the_prod = reduce(operator.mul, gns_plambda, 1)
@@ -368,6 +369,7 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
         sector = spart.sector()
         Jack_m_cache = self._Jack_m_cache
         M = self._M
+        BR = M.base_ring()
         if sector in Jack_m_cache:
             the_dict = Jack_m_cache[sector][spart]
         else:
@@ -377,7 +379,7 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
             self._update_cache(sector, sect_dict, which_cache='Jack_m')
             the_dict = sect_dict[spart]
         spart_coeff = the_dict.items()
-        mono_coeff = ((M(a_spart), coeff)
+        mono_coeff = ((M(a_spart), BR(coeff))
                       for a_spart, coeff in spart_coeff)
         out = M.linear_combination(mono_coeff)
         return out
@@ -389,6 +391,7 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
         sector = spart.sector()
         Macdo_m_cache = self._Macdo_m_cache
         M = self._M
+        BR = M.base_ring()
         if sector in Macdo_m_cache:
             the_dict = Macdo_m_cache[sector][spart]
         else:
@@ -398,7 +401,7 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
             self._update_cache(sector, sect_dict, which_cache='Macdo_m')
             the_dict = sect_dict[spart]
         spart_coeff = the_dict.items()
-        mono_coeff = ((M(a_spart), coeff)
+        mono_coeff = ((M(a_spart), BR(coeff))
                       for a_spart, coeff in spart_coeff)
         out = M.linear_combination(mono_coeff)
         return out
@@ -766,11 +769,10 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
                 self_p = P(self)
                 alpha = in_alpha
                 if in_alpha is None:
-                    if hasattr(parent, "alpha"):
-                        alpha = parent.alpha
-                    else:
-                        alpha = BR(QQ['alpha'].gen())
+                    alpha = BR.gens_dict()['alpha']
+                print(BR)
                 one = BR.one()
+                print(alpha)
                 out = P._from_dict(
                     {
                         spart:
@@ -819,10 +821,12 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
                 other_p = P(other)
                 alpha = in_alpha
                 if in_alpha is None:
-                    if hasattr(parent, "alpha"):
-                        alpha = parent.alpha
-                    else:
-                        alpha = BR(QQ['alpha'].gen())
+                    params = BR.gens_dict()
+                    alpha = params['alpha']
+                    # if hasattr(parent, "alpha"):
+                    #     alpha = parent.alpha
+                    # else:
+                    #     alpha = BR(QQ['alpha'].fraction_field().gen())
                 _zee_alpha = P.z_lambda_alpha
                 out = P._apply_multi_module_morphism(self_p, other_p,
                                                      _zee_alpha,
