@@ -125,6 +125,8 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
         self._E = self.Elementary()
         self._Schur = self.Schur()
         self._SchurBar = self.SchurBar()
+        self._SchurStar = self.SchurStar()
+        self._SchurBarStar = self.SchurBarStar()
         category = self.Bases()
 
         # These implementation are a bit slow.
@@ -160,13 +162,29 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
         self._Schur_to_m = self._Schur.module_morphism(
             self.morph_Schur_to_m, triangular='upper', invertible=True,
             codomain=self._M, category=category)
+        self._m_to_Schur = ~(self._Schur_to_m)
 
         self._SchurBar_to_m = self._SchurBar.module_morphism(
             self.morph_SchurBar_to_m, triangular='upper', invertible=True,
             codomain=self._M, category=category)
+        self._m_to_SchurBar = ~(self._SchurBar_to_m)
+
+        self._SchurStar_to_SchurBar = self._SchurStar.module_morphism(
+            self.morph_SchurStar_to_SchurBar,
+            triangular='upper', invertible=True,
+            codomain=self._SchurBar, category=category)
+
+        self._SchurBarStar_to_Schur = self._SchurBarStar.module_morphism(
+            self.morph_SchurBarStar_to_Schur,
+            triangular='upper', invertible=True,
+            codomain=self._Schur, category=category)
 
         self._Schur_to_m.register_as_coercion()
+        self._m_to_Schur.register_as_coercion()
         self._SchurBar_to_m.register_as_coercion()
+        self._m_to_SchurBar.register_as_coercion()
+        self._SchurStar_to_SchurBar.register_as_coercion()
+        self._SchurBarStar_to_Schur.register_as_coercion()
         try:
             self._Schur_m_cache = load('./super_cache/Schur_m')
             self._SchurBar_m_cache = load('./super_cache/SchurBar_m')
@@ -199,12 +217,12 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
             self._m_to_Jack.register_as_coercion()
 
         # Handling the macdonald
+        try:
+            self._Macdo_m_cache = load('./super_cache/Macdo_m')
+        except:
+            self._Macdo_m_cache = dict({})
         var_names = some_ring.variable_names()
         if 'q' in var_names and 't' in var_names:
-            try:
-                self._Macdo_m_cache = load('./super_cache/Macdo_m')
-            except:
-                self._Jack_m_cache = dict({})
             self._Macdo = self.Macdonald()
             self._Macdo_to_m = self._Macdo.module_morphism(
                 self.morph_Macdo_to_m, triangular='upper', invertible=True,
@@ -425,6 +443,7 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
         sector = spart.sector()
         Schur_m_cache = self._Schur_m_cache
         M = self._M
+        BR = M.base_ring()
         if sector in Schur_m_cache:
             the_dict = Schur_m_cache[sector][spart]
         else:
@@ -454,7 +473,7 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
             self._update_cache(sector, sect_dict, which_cache='Schur_m')
             the_dict = sect_dict[spart]
         spart_coeff = the_dict.items()
-        mono_coeff = ((M(a_spart), coeff)
+        mono_coeff = ((M(a_spart), BR(coeff))
                       for a_spart, coeff in spart_coeff)
         out = M.linear_combination(mono_coeff)
         return out
@@ -466,6 +485,7 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
         sector = spart.sector()
         Schur_m_cache = self._SchurBar_m_cache
         M = self._M
+        BR = M.base_ring()
         if sector in Schur_m_cache:
             the_dict = Schur_m_cache[sector][spart]
         else:
@@ -496,12 +516,31 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
             self._update_cache(sector, sect_dict, which_cache='SchurBar_m')
             the_dict = sect_dict[spart]
         spart_coeff = the_dict.items()
-        mono_coeff = ((M(a_spart), coeff)
+        # Here we must make sure that the coefficient is cast back 
+        # into the coeff ring. It will generate errors otherwise. 
+        mono_coeff = ((M(a_spart), BR(coeff))
                       for a_spart, coeff in spart_coeff)
         out = M.linear_combination(mono_coeff)
         return out
 
+    def morph_SchurStar_to_SchurBar(self, spart):
+        """Return the monomial expansion of the dual Schur given a spart."""
+        sbar_lambdaprime = self._SchurBar(spart.conjugate())
+        omega_sbar = sbar_lambdaprime.omega()
+        ferm_deg = spart.fermionic_degree()
+        s_star = (-1)**(ferm_deg*(ferm_deg-1)/2)*omega_sbar
+        return s_star
+
+    def morph_SchurBarStar_to_Schur(self, spart):
+        """Return the monomial expansion of the dual Schur given a spart."""
+        s_lambdaprime = self._Schur(spart.conjugate())
+        omega_s = s_lambdaprime.omega()
+        ferm_deg = spart.fermionic_degree()
+        sbar_star = (-1)**(ferm_deg*(ferm_deg-1)/2)*omega_s
+        return sbar_star
+
     def _update_cache(self, sector, cache_extension, which_cache=None):
+        """Write to disk the updated cache of an object."""
         if which_cache == 'Jack_m':
             self._Jack_m_cache[sector] = cache_extension
             save(self._Jack_m_cache, filename='./super_cache/Jack_m')
@@ -510,10 +549,10 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
             save(self._Macdo_m_cache, filename='./super_cache/Macdo_m')
         if which_cache == 'Schur_m':
             self._Schur_m_cache[sector] = cache_extension
-            save(self._Macdo_m_cache, filename='./super_cache/Schur_m')
+            save(self._Schur_m_cache, filename='./super_cache/Schur_m')
         if which_cache == 'SchurBar_m':
             self._SchurBar_m_cache[sector] = cache_extension
-            save(self._Macdo_m_cache, filename='./super_cache/SchurBar_m')
+            save(self._SchurBar_m_cache, filename='./super_cache/SchurBar_m')
 
     def a_realization(self):
         """Return a realization."""
@@ -980,18 +1019,35 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
     class Schur(Basis):
         """Class of the type I super Schur."""
 
-        def __init(self, A):
+        def __init__(self, A):
             """Initiate the combinatorial module."""
             SymSuperfunctionsAlgebra.Basis.__init__(
                 self, A, prefix='s')
 
     class SchurBar(Basis):
-        """Class of the type I super Schur."""
+        """Class of the type II super Schur."""
 
-        def __init(self, A):
+        def __init__(self, A):
             """Initiate the combinatorial module."""
             SymSuperfunctionsAlgebra.Basis.__init__(
                 self, A, prefix='sbar')
+
+    class SchurStar(Basis):
+        """Class of the type I dual super Schur."""
+
+        def __init__(self, A):
+            """Initiate the combinatorial module."""
+            SymSuperfunctionsAlgebra.Basis.__init__(
+                self, A, prefix='sStar')
+
+    class SchurBarStar(Basis):
+        """Class of the type II dual super Schur."""
+
+        def __init__(self, A):
+            """Initiate the combinatorial module."""
+            SymSuperfunctionsAlgebra.Basis.__init__(
+                self, A, prefix='sbarStar')
+
 
     class MultiplicativeBasis(Basis):
         def __init__(self, A, **kwargs):
@@ -1182,14 +1238,14 @@ def normalize_coefficients(self, c):
         denom = c.denominator()
         numer = c.numerator()
 
-        #Clear the denominators
+        # Clear the denominators
         a = lcm([i.denominator() for i in denom.coefficients()])
         b = lcm([i.denominator() for i in numer.coefficients()])
         l = Integer(a).lcm(Integer(b))
         denom *= l
         numer *= l
 
-        #Divide through by the gcd of the numerators
+        # Divide through by the gcd of the numerators
         a = gcd([i.numerator() for i in denom.coefficients()])
         b = gcd([i.numerator() for i in numer.coefficients()])
         l = Integer(a).gcd(Integer(b))
