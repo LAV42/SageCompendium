@@ -489,7 +489,7 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
         if sector in Schur_m_cache:
             the_dict = Schur_m_cache[sector][spart]
         else:
-            print("The expansion of this Schur superpolynomial" +
+            print("The expansion of this SchurBar superpolynomial" +
                   " was not precomputed.")
 
             def schurbar_case(coeff):
