@@ -1,3 +1,4 @@
+"""The symmetric superpolynomial module."""
 from sage.structure.parent import Parent
 from sage.structure.unique_representation import UniqueRepresentation
 from sage.combinat.free_module import CombinatorialFreeModule
@@ -27,6 +28,7 @@ from sage.arith.all import gcd, lcm
 # from sage.symbolic.assumptions import assume
 # from sage.misc.flatten import flatten
 from sage.structure.sage_object import load, save
+from sage.matrix.constructor import Matrix
 
 
 def super_init():
@@ -42,9 +44,8 @@ def super_init():
 
 
 def unique_permutations(seq):
+    """Yield only unique permutations of seq in an efficient way."""
     """
-    Yield only unique permutations of seq in an efficient way.
-
     A python implementation of Knuth's "Algorithm L", also known from
     the std::next_permutation function of C++, and as the permutation
     algorithm of Narayana Pandita.
@@ -108,6 +109,7 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
     """The Class of Symmetric superfunctions."""
 
     def __init__(self, some_ring):
+        """Initialize the algebra, cache and realizations."""
         self._base = some_ring
         my_cat = Algebras(some_ring)
         Parent.__init__(self,
@@ -171,12 +173,10 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
 
         self._SchurStar_to_SchurBar = self._SchurStar.module_morphism(
             self.morph_SchurStar_to_SchurBar,
-            # triangular='upper', invertible=True,
             codomain=self._SchurBar, category=category)
 
         self._SchurBarStar_to_Schur = self._SchurBarStar.module_morphism(
             self.morph_SchurBarStar_to_Schur,
-            # triangular='upper', invertible=True,
             codomain=self._Schur, category=category)
 
         self._Schur_to_SchurBarStar = self._Schur.module_morphism(
@@ -192,10 +192,7 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
         self._m_to_SchurBar.register_as_coercion()
         self._SchurStar_to_SchurBar.register_as_coercion()
         self._SchurBarStar_to_Schur.register_as_coercion()
-        # Not yet working 
-        # TODO Solve the following, the problem resides in that 
-        # we don't have coercion from SchurBarStar or SchurStar
-        # back from powersum. 
+        # REVISION
         self._Schur_to_SchurBarStar.register_as_coercion()
         self._SchurBar_to_SchurStar.register_as_coercion()
         try:
@@ -274,6 +271,7 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
         return the_prod
 
     def morph_h_to_m(self, spart):
+        """Return the expansion of h(spart) on the monomial basis."""
         M = self._M
         if spart == _Superpartitions([[], []]):
             return M(1)
@@ -294,6 +292,7 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
         return the_prod
 
     def morph_e_to_m(self, spart):
+        """Return the expansion of e(spart) on the monomial basis."""
         M = self._M
         Sparts = Superpartitions()
         if spart == _Superpartitions([[], []]):
@@ -310,8 +309,8 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
         return the_prod
 
     def morph_h_to_p(self, spart):
+        """Convert h_Lambda to powersums."""
         """
-        Convert h_Lambda to powersums.
         See Corollary 36 eq 3.61 of Classical Basis in superspace
         """
         P = self._P
@@ -329,10 +328,8 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
         return the_prod
 
     def morph_galpha_to_p(self, spart):
-        """
-        Convert galpha_Lambda to powersums.
-        See compendium The one parameter of the ...
-        """
+        """Convert galpha_Lambda to powersums."""
+        # See compendium The one parameter of the ...
         # We should somehow make sure that the ring is OK.
         P = self._P
         if spart == _Superpartitions([[], []]):
@@ -351,10 +348,8 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
         return the_prod
 
     def morph_gqt_to_p(self, spart):
-        """
-        Convert galpha_Lambda to powersums.
-        See compendium The one parameter of the ...
-        """
+        """Convert galpha_Lambda to powersums."""
+        # See compendium The one parameter of the ...
         # We should somehow make sure that the ring is OK.
         P = self._P
         BR = P.base_ring()
@@ -439,14 +434,14 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
         q_SR = SR(q)
         t_SR = SR(t)
 
-        # We can now do the substitution since it is allowed on the 
+        # We can now do the substitution since it is allowed on the
         # symbolic ring
         coeff_SR_q = coeff_SR.subs({q_SR: t_SR})
 
         # And here, one must understand that the limit is computed
         # by GAP and that the limit argument is sent by sage as a
-        # string. So instead of writing t_SR = 1, we must write 
-        # t = 1 since t_SR is represented as the string 't' 
+        # string. So instead of writing t_SR = 1, we must write
+        # t = 1 since t_SR is represented as the string 't'
         # in the equations
         coeff_lim = coeff_SR_q.limit(t=lim)
 
@@ -476,8 +471,8 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
             _Macdo = _Symqt.Macdonald()
             _mono = _Symqt.Monomial()
 
-            # To update the cache, we have to compute the whole 
-            # sector. 
+            # To update the cache, we have to compute the whole
+            # sector.
             sparts = Superpartitions(*sector)
             sect_dict = {
                 a_spart:
@@ -519,8 +514,8 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
             _Macdo = _Symqt.Macdonald()
             _mono = _Symqt.Monomial()
 
-            # To update the cache, we have to compute the whole 
-            # sector. 
+            # To update the cache, we have to compute the whole
+            # sector.
             sparts = Superpartitions(*sector)
             sect_dict = {
                 a_spart:
@@ -532,8 +527,8 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
             self._update_cache(sector, sect_dict, which_cache='SchurBar_m')
             the_dict = sect_dict[spart]
         spart_coeff = the_dict.items()
-        # Here we must make sure that the coefficient is cast back 
-        # into the coeff ring. It will generate errors otherwise. 
+        # Here we must make sure that the coefficient is cast back
+        # into the coeff ring. It will generate errors otherwise.
         mono_coeff = ((M(a_spart), BR(coeff))
                       for a_spart, coeff in spart_coeff)
         out = M.linear_combination(mono_coeff)
@@ -547,14 +542,6 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
         s_star = (-1)**(ferm_deg*(ferm_deg-1)/2)*omega_sbar
         return s_star
 
-    def morph_SchurBar_to_SchurStar(self, spart):
-        """Return the monomial expansion of the dual Schur given a spart."""
-        sstar_lambdaprime = self._SchurStar(spart.conjugate())
-        omega_sstar = sstar_lambdaprime.omega()
-        ferm_deg = spart.fermionic_degree()
-        s_bar = (-1)**(ferm_deg*(ferm_deg-1)/2)*omega_sstar
-        return s_bar
-
     def morph_SchurBarStar_to_Schur(self, spart):
         """Return the monomial expansion of the dual Schur given a spart."""
         s_lambdaprime = self._Schur(spart.conjugate())
@@ -563,16 +550,70 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
         sbar_star = (-1)**(ferm_deg*(ferm_deg-1)/2)*omega_s
         return sbar_star
 
+    def TM_SchurBarStar_Schur(self, sector):
+        """Return the transition matrix sBarStar to Schur."""
+        Sparts = Superpartitions(*sector)
+        target = self._Schur
+        origin = self._SchurBarStar
+        expr = [target(origin(spart)) for spart in Sparts]
+        TM = [
+            [one_expr.coefficient(spart) for spart in Sparts]
+            for one_expr in expr]
+        TM = Matrix(TM)
+        return TM
+
+    def TM_Schur_SchurBarStar(self, sector):
+        """Return the transition matrix Schur to SchurBarStar."""
+        TM = self.TM_SchurBarStar_Schur(sector)
+        TM = TM.inverse()
+        return TM
+
+    def TM_SchurStar_SchurBar(self, sector):
+        """Return the transition matrix SchurStar to SchurBar."""
+        Sparts = Superpartitions(*sector)
+        target = self._SchurBar
+        origin = self._SchurStar
+        expr = [target(origin(spart)) for spart in Sparts]
+        TM = [
+            [one_expr.coefficient(spart) for spart in Sparts]
+            for one_expr in expr]
+        TM = Matrix(TM)
+        return TM
+
+    def TM_SchurBar_SchurStar(self, sector):
+        """Return the transition matrix SchurBar to SchurStar."""
+        TM = self.TM_SchurStar_SchurBar(sector)
+        TM = TM.inverse()
+        return TM
+
+    def morph_SchurBar_to_SchurStar(self, spart):
+        """Return the Schur dual expansion of SchurBar given a spart."""
+        sstar = self._SchurStar
+        sparts = list(Superpartitions(*spart.sector()))
+        spart_index = sparts.index(spart)
+        TM = self.TM_SchurBar_SchurStar(spart.sector())
+        sp_line = TM[spart_index]
+        s_coeff = [
+            (sstar(sparts[sp_index]), sp_line[sp_index])
+            for sp_index in range(len(sparts))
+        ]
+        return sstar.linear_combination(s_coeff)
+
     def morph_Schur_to_SchurBarStar(self, spart):
-        """Return the monomial expansion of the dual Schur given a spart."""
-        s_lambdaprime = self._SchurBarStar(spart.conjugate())
-        omega_s = s_lambdaprime.omega()
-        ferm_deg = spart.fermionic_degree()
-        s = (-1)**(ferm_deg*(ferm_deg-1)/2)*omega_s
-        return s
+        """Return the dualr Schurbar of the Schur given a spart."""
+        sbarstar = self._SchurStar
+        sparts = list(Superpartitions(*spart.sector()))
+        spart_index = sparts.index(spart)
+        TM = self.TM_Schur_SchurBarStar(spart.sector())
+        sp_line = TM[spart_index]
+        s_coeff = [
+            (sbarstar(sparts[sp_index]), sp_line[sp_index])
+            for sp_index in range(len(sparts))
+        ]
+        return sbarstar.linear_combination(s_coeff)
 
     def _update_cache(self, sector, cache_extension, which_cache=None):
-        """Write to disk the updated cache of an object."""
+        """Update and write to disk the cache of an object."""
         if which_cache == 'Jack_m':
             self._Jack_m_cache[sector] = cache_extension
             save(self._Jack_m_cache, filename='./super_cache/Jack_m')
@@ -587,8 +628,8 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
             save(self._SchurBar_m_cache, filename='./super_cache/SchurBar_m')
 
     def a_realization(self):
-        """Return a realization."""
-        return self._M()
+        """Return the default realization."""
+        return self._M
 
     def _repr_(self):
         out = "Symmetric superfunctions over " + str(self.base_ring())
@@ -596,6 +637,7 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
 
     def _gram_schmidt(self, n, m, source, scalar,
                       leading_coeff=None, upper_triangular=True):
+        """Apply Gram Schmidt procedure for sector given scalar product."""
         r"""
         This is copied from sage/combinat/sf, adapted for superpartitions.
         Apply Gram-Schmidt to ``source`` with respect to the scalar product
@@ -664,7 +706,11 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
             start = leading_coeff(l[i])*source(l[i])
             sub = 0
             for j in range(i):
-                sub += pscalar(start, precomputed_elements[j])/pscalar(precomputed_elements[j], precomputed_elements[j]) * precomputed_elements[j]
+                sub += (
+                    pscalar(start, precomputed_elements[j]) /
+                    pscalar(precomputed_elements[j], precomputed_elements[j]) *
+                    precomputed_elements[j]
+                )
             res = start - sub
             res = res.map_coefficients(lambda x: BR(SR(x)))
 
@@ -679,7 +725,9 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
 
     class Bases(Category_realization_of_parent):
         """General class for bases."""
+
         def super_categories(self):
+            """Define the category of basis."""
             A = self.base()
             category = Algebras(A.base_ring())
             return [A.Realizations(),
@@ -689,6 +737,7 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
             """Code common to all bases of the algebra."""
 
             def __getitem__(self, args):
+                """Allow abuse of notation."""
                 """
                 This method allows the abuse of notation where instead
                 of writting
@@ -701,12 +750,12 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
                 return self.monomial(_Superpartitions(list(args)))
 
             def one(self):
-                """The unit element."""
+                """Return the unit element."""
                 Sp = Superpartitions()
                 return self(Sp([[], []]))
 
             def is_multiplicative(self):
-                """Tells wether or not a basis is multiplicative."""
+                """Tell wether or not a basis is multiplicative."""
                 return isinstance(
                     self, SymSuperfunctionsAlgebra.MultiplicativeBasis)
 
@@ -752,6 +801,7 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
 
             @classmethod
             def z_lambda_alpha(cls, spart, alpha):
+                """Alpha deformation of z_lambda."""
                 return alpha**len(spart)*cls.z_lambda(spart)
 
             @classmethod
@@ -792,6 +842,7 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
                 return self.parent(P(self).omega())
 
             def omega_alpha(self, in_alpha=None):
+                """Alpha deformation of the involution omega."""
                 parent = self.parent()
                 BR = parent.base_ring()
                 P = parent.realization_of().Powersum()
@@ -812,6 +863,7 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
                 return parent(out)
 
             def omega_qt(self, in_alpha=None):
+                """Apply qt deformation of involution omega."""
                 parent = self.parent()
                 BR = parent.base_ring()
                 P = parent.realization_of().Powersum()
@@ -828,7 +880,7 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
                             coeff*q**(spart[0].degree())
                             * (-one)**(spart.bosonic_degree() - len(spart[1]))
                             * prod([(1-q**a_part)/(1-t**a_part)
-                                for a_part in spart[1]])
+                                   for a_part in spart[1]])
                         ))
                         for spart, coeff in self_p
                     }
@@ -837,12 +889,14 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
 
             @cached_method
             def scalar_product(self, other):
+                """Apply scalar product for self * other."""
                 P = self.parent().realization_of().Powersum()
                 self_p = P(self)
                 scal_prod = self_p.scalar_product(other)
                 return scal_prod
 
             def scalar_alpha(self, other, in_alpha=None):
+                """Apply alpha-deformed scalar product."""
                 parent = self.parent()
                 BR = parent.base_ring()
                 P = parent.realization_of().Powersum()
@@ -865,6 +919,7 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
                 return out
 
             def scalar_qt(self, other):
+                """Apply qt deformed scalar product."""
                 parent = self.parent()
                 BR = parent.base_ring()
                 P = parent.realization_of().Powersum()
@@ -882,14 +937,16 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
                 out = P._apply_multi_module_morphism(self_p, other_p,
                                                      _zee_qt,
                                                      orthogonal=True,
-                                                     parameters=(q,t))
+                                                     parameters=(q, t))
                 # out = simplify(out)
                 return out
 
             def zero(self):
+                """Return 0."""
                 return 0
 
             def one(self):
+                """Return identity element."""
                 Sp = Superpartitions()
                 return self.parent(Sp([[], []]))
 
@@ -897,22 +954,25 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
         """Generic class for bases. Mainely for the constructor."""
 
         def __init__(self, A, **kwargs):
+            """Initialize."""
             CombinatorialFreeModule.__init__(
                 self, A.base_ring(), Superpartitions(),
                 category=A.Bases(), bracket="", **kwargs)
             self._is_multiplicative = False
 
         def one(self):
+            """Identity element."""
             return self(_Superpartitions([[], []]))
 
         def one_basis(self):
+            """Identity element."""
             return _Superpartitions([[], []])
 
     class Monomial(Basis):
         """Class of the monomial basis."""
 
         def __init__(self, A):
-            """Initiate the combinatorial module."""
+            """Initialize the combinatorial module."""
             SymSuperfunctionsAlgebra.Basis.__init__(
                 self, A, prefix='m')
 
@@ -922,9 +982,7 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
 
         @cached_method
         def product_on_basis(self, left, right):
-            """
-            Give the monomial expansion of the product of two monomials.
-            """
+            """Give the monomial expansion of the product of two monomials."""
             # The algorithm is based on
             # L. Alarie-Vezina, L. Lapointe and P. Mathieu.
             # N >= 2 symmetric superpolynomials.
@@ -993,8 +1051,7 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
 
         @staticmethod
         def give_prod_coeff(alt_spart):
-            """Give the coefficient associated to two spart in the
-            mono_prod."""
+            """Give the coefficient associated to spart in the mono_prod."""
             # We first compute the sign associated to this spart.
             # Following the algorithm of Alarie-Vezina et. al
             # N >= 2 symmetric superpolynomials
@@ -1053,7 +1110,7 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
         """Class of the type I super Schur."""
 
         def __init__(self, A):
-            """Initiate the combinatorial module."""
+            """Initialize the combinatorial module."""
             SymSuperfunctionsAlgebra.Basis.__init__(
                 self, A, prefix='s')
 
@@ -1061,7 +1118,7 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
         """Class of the type II super Schur."""
 
         def __init__(self, A):
-            """Initiate the combinatorial module."""
+            """Initialize the combinatorial module."""
             SymSuperfunctionsAlgebra.Basis.__init__(
                 self, A, prefix='sbar')
 
@@ -1069,7 +1126,7 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
         """Class of the type I dual super Schur."""
 
         def __init__(self, A):
-            """Initiate the combinatorial module."""
+            """Initialize the combinatorial module."""
             SymSuperfunctionsAlgebra.Basis.__init__(
                 self, A, prefix='sStar')
 
@@ -1077,29 +1134,34 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
         """Class of the type II dual super Schur."""
 
         def __init__(self, A):
-            """Initiate the combinatorial module."""
+            """Initialize the combinatorial module."""
             SymSuperfunctionsAlgebra.Basis.__init__(
                 self, A, prefix='sbarStar')
 
-
     class MultiplicativeBasis(Basis):
+        """Generic class for multiplicative bases."""
+
         def __init__(self, A, **kwargs):
+            """Initialize the combinatorial module."""
             SymSuperfunctionsAlgebra.Basis.__init__(
                 self, A, **kwargs)
 
         def product_on_basis(self, left, right):
-            """
-            Return the product of left and right.
-            """
+            """Return the product of left and right."""
             the_sign, the_spart = left + right
             return the_sign * self(the_spart)
 
     class Powersum(MultiplicativeBasis):
+        """Class for the powersum basis."""
+
         def __init__(self, A):
+            """Initialize the combinatorial module."""
             SymSuperfunctionsAlgebra.MultiplicativeBasis.__init__(
                 self, A, prefix='p')
 
         class Element(CombinatorialFreeModule.Element):
+            """Class for methods of elements of basis."""
+
             def omega(self):
                 """Return the omega automorphism on the powersum basis."""
                 # map_item(f), f must be a function that returns (index, coeff)
@@ -1110,6 +1172,7 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
                 return self.map_item(f)
 
             def scalar_product(self, other):
+                """Scalar product over powersum basis."""
                 P = self.parent()
                 other_p = P(other)
                 return P._apply_multi_module_morphism(self, other_p,
@@ -1119,28 +1182,40 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
     p = Powersum
 
     class Elementary(MultiplicativeBasis):
+        """Elementary basis."""
+
         def __init__(self, A):
+            """Initialize the combinatorial module."""
             SymSuperfunctionsAlgebra.MultiplicativeBasis.__init__(
                 self, A, prefix='e')
 
     e = Elementary
 
     class Homogeneous(MultiplicativeBasis):
+        """Homogeneous basis."""
+
         def __init__(self, A):
+            """Initialize the combinatorial module."""
             SymSuperfunctionsAlgebra.MultiplicativeBasis.__init__(
                 self, A, prefix='h')
 
     h = Homogeneous
 
     class Galpha(MultiplicativeBasis):
+        """Alpha deformation of homogeneous basis."""
+
         def __init__(self, A):
+            """Initialize the combinatorial module."""
             SymSuperfunctionsAlgebra.MultiplicativeBasis.__init__(
                 self, A, prefix='galpha')
 
     galpha = Galpha
 
     class Gqt(MultiplicativeBasis):
+        """q,t-deformation of the homogeneous basis."""
+
         def __init__(self, A):
+            """Initialize the combinatorial module."""
             SymSuperfunctionsAlgebra.MultiplicativeBasis.__init__(
                 self, A, prefix='gqt')
 
@@ -1148,12 +1223,15 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
 
     class Jack(Basis):
         """ Class for the Jack superpolynomials. """
+
         def __init__(self, A):
+            """Initialize the combinatorial module."""
             SymSuperfunctionsAlgebra.Basis.__init__(
                 self, A, prefix='Palpha')
 
         @staticmethod
         def calc_norm(spart, param='alpha'):
+            """Return the norm calculated with formula."""
             if param == 'alpha':
                 QQa = QQ['alpha'].fraction_field()
                 alpha = QQa.gen()
@@ -1191,7 +1269,9 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
 
     class Macdonald(Basis):
         """Class for the Macdonald superpolynomials."""
+
         def __init__(self, A):
+            """Initialize the combinatorial module."""
             SymSuperfunctionsAlgebra.Basis.__init__(
                 self, A, prefix='Pqt')
 
@@ -1237,6 +1317,7 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
 
 
 def normalize_coefficients(self, c):
+    """Normalize. Helper functions, deprecating."""
     r"""
     If our coefficient ring is the field of fractions over a univariate
     polynomial ring over the rationals, then we should clear both the
@@ -1290,7 +1371,9 @@ def normalize_coefficients(self, c):
     else:
         return c
 
+
 def part_scalar_jack(spart1, spart2, alpha):
+    """Alpha scalar product for 2 sparts."""
     if spart1 != spart2:
         return 0
     else:
