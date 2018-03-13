@@ -338,6 +338,15 @@ class Superpartition(ClonableArray):
             for k in part_dict.keys()])
         return out
 
+    def n_lambda(self):
+        spart = self
+        part_dict = Counter(list(spart[1]))
+        out = prod([
+            factorial(part_dict[k])
+            for k in part_dict.keys()])
+        return out
+
+
     def conjugate(self):
         part_pair = self.partition_pair()
         conj_part_pair = [x.conjugate() for x in part_pair]
