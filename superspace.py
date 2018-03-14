@@ -121,15 +121,54 @@ class superspace:
         mono = singular(mono_str)
         return mono
 
-    def super_monomial(self, spart):
-        """Return the monomial associated to spart."""
+    def is_symmetric(self, expr):
+        """Check if expr is symmetric in N variables."""
         N = self._N
         SN = self._SN
-
-    def is_symmetric(self, expr):
-        """Check if expr is symmetric."""
-        N = self._N
-        pass
+        Theta = self._theta_var
+        X = self._x_var
+        permutations = SN
+        # We generate the permutations of the list of variables
+        permVars = [['dtheta'] + permutation(Theta) + permutation(X)
+                    for permutation in permutations]
+        # join everything as a big string
+        maps_arg = [','.join(new_vars) for new_vars in permVars]
+        # Dimensions for the future Singular matrix
+        matrix_dim = (SN.cardinality(), 2*N+1)
+        # Code needed for the Matrix declaration
+        # MM[i][j] where each row is a new permuation and j are the
+        # theta_0, theta_1, ....
+        matrix_declaration = ('matrix MM'+'[%d][%d]' % matrix_dim +
+                              '=' + ','.join(maps_arg) + ';')
+        singular.eval(matrix_declaration)
+        # We define a variable to act as a Singular-Sage bridge
+        out = singular.int(1)
+        # We find out how Singular calls 'out' internaly
+        singular_out = out.name()
+        # We retrieve the Singular name of expr in the current session
+        # so that we can call it from inside
+        singular_expr = singular(expr).name()
+        # Here we prepare what is going to be sent to Singular
+        computemap = (
+            # We set result to be true by default
+            "int out = 1;"
+            # This 'for' will loop over the rows of the Matrix
+            # that is over every permutation of S_N
+            "for(int i=1; i<=" + str(matrix_dim[0]) + "; i++){"
+            # We define a map which will be the exchange operator
+            "map f = basering, MM[i,1.." + str(matrix_dim[1]) + "];"
+            # We apply the map and add the result to previous permutations
+            "if(" + singular_expr + "!= f(" + singular_expr + ")){"
+            "out = 0; break;};"
+            "};" +
+            # We define the 'out' known by Sage to be the Singular 'out'
+            # This will update the value of out in Sage.
+            singular_out + "= out;"
+            "kill out;"
+        )
+        # We send all of this to singular
+        singular.eval(computemap)
+        return bool(out)
 
     def apply_permuation(self, expr, permutation):
         Theta = self._theta_var
@@ -146,7 +185,7 @@ class superspace:
     # The factor in front of the whole thing is too big
     def symmetrize(self, expr, condition=None):
         """Symmetrize (in superspace) a Singular expression."""
-        """
+        r"""
             Note that calling superspace.apply_permuation(expr) multiple times
             is not an option here since it is too slow. This function is fast
             because we send everything Singular needs to compute the result in
@@ -162,12 +201,14 @@ class superspace:
         Theta = self._theta_var
         X = self._x_var
         permutations = SN
-        # TODO Remove permutation that leaves the initial monomial invariant
+        # We generate the permutations of the list of variables
         if condition is not None:
-            pass
-        # We define all permutations of the variables
-        permVars = [['dtheta'] + permutation(Theta) + permutation(X)
-                    for permutation in permutations]
+            permVars = [['dtheta'] + permutation(Theta) + permutation(X)
+                        for permutation in permutations
+                        if condition(permutation)]
+        else:
+            permVars = [['dtheta'] + permutation(Theta) + permutation(X)
+                        for permutation in permutations]
         # join everything as a big string
         maps_arg = [','.join(new_vars) for new_vars in permVars]
         # Dimensions for the future Singular matrix
@@ -200,6 +241,7 @@ class superspace:
             # We define the 'out' known by Sage to be the Singular 'out'
             # This will update the value of out in Sage.
             singular_out + "= out;"
+            "kill out;"
         )
         # We send all of this to singular
         singular.eval(computemap)
@@ -221,6 +263,12 @@ class superspace:
             thetas = ['theta_%d' % (k) for k in range(spart.fermionic_degree())]
             thetas = singular('*'.join(thetas))
             super_ns_mono = thetas*super_ns_mono
-        out = 1/(spart.n_lambda())*self.symmetrize(super_ns_mono)
-        return out
+        symmed = self.symmetrize(super_ns_mono)
+        # For some reason I have to cast the number to QQ
+        # Otherwise sage returns 0 for 1/normal. I have no idea why.
+        normal = QQ(spart.n_lambda())
+        normal = 1/normal
+        print('normal', normal)
+        super_mono = normal*symmed 
+        return super_mono
 
