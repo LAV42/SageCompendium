@@ -1,8 +1,7 @@
 """Allows the manipulation of superpolynomials in variables."""
 from sage.interfaces.singular import singular
 from superpartition import _Superpartitions, Superpartitions
-from itertools import chain
-import numpy as np
+from sage.rings.rational_field import QQ
 from sage.groups.perm_gps.permgroup_named import SymmetricGroup
 singular.lib('nctools.lib')
 
@@ -55,7 +54,7 @@ class superspace:
         return (bosonic_degree, fermionic_degree)
 
     # TODO: Check if it works
-    def _int_vec_is_ordered(self, intvec, return_spart=True):
+    def _int_vec_is_ordered(self, intvec):
         """Check wether the intvec taken from a supermonomial is a spart."""
         N = self._N
         thetas = intvec[1:N+1]
@@ -68,14 +67,23 @@ class superspace:
                           if ferm]
         if sorted(fermionic_part, reverse=True) == fermionic_part:
             is_sorted = True
+            # Make sure we exit as soon as we know since this is going to be
+            # called quite a lot
+            if not is_sorted:
+                return False
         bosonic_part = [part
                         for (part, ferm) in zip(x_var, thetas)
                         if not ferm]
-        bosonic_part = [value for value in bosonic_part if value != 0]
+        # Here we keep the extra 0's because [4,2,0,1] is not ordered 
+        # but [4,2,1,0] is 
+        bosonic_part = [value for value in bosonic_part]
         if sorted(bosonic_part, reverse=True) == bosonic_part:
-            is_sorted = True and is_sorted
+            # We don't have to `and` with previous result because
+            # at this point is_sorted can't be True
+            is_sorted = True
 
-        return _Superpartitions([fermionic_part, bosonic_part])
+        return is_sorted
+
 
     # TODO: Check if it works.
     def _int_vec_to_spart(self, intvec):
@@ -247,20 +255,52 @@ class superspace:
         singular.eval(computemap)
         return out
 
-    def symmetrize_old(self, expr):
-        SN = self._SN
-        perms = [self.apply_permuation(expr, perm) for perm in SN]
-        symmed = sum(perms)
-        return symmed
+    def var_to_monomials(self, expr, check_sym=True):
+        if check_sym:
+            if not self.is_symmetric(expr):
+                print("This superpolynomial is not symmetric.")
+                return 0
+        sector = self.get_sector(expr)
+        ferm_degree = sector[1]
+        if ferm_degree == 0:
+            theta_1_m = 1
+        else:
+            theta_1_m = ['theta_'+str(k) for k in range(ferm_degree)]
+            theta_1_m = singular('*'.join(theta_1_m))
+        # Here we only take the part of expr that is multiplied by 
+        # theta_0...theta_ferm_degree because the rest of the expression
+        # doesn't have more informations. 
+        # the [1] is to select the power theta...^1
+        # the [2] gives us the expression that multiplies theta...^1
+        # Note that Singular indices start at 1
+        projected_expr = expr.coef(theta_1_m)[1][2]
 
-    def var_to_monomials():
-        pass
+        theta_projected = theta_1_m*projected_expr
+        # Now from this expression, we want to extract the coefficients
+        # and superpartitions. To get the sign and multiplicity right, we must
+        # make sure that the exponents of the x's are compatible with a
+        # superpartition
+        int_vecs = [mono.leadexp().sage() for mono in theta_projected]
+        # Here I add a dummy element at the begining of int_vecs so that
+        # indices matches those of theta_projected (which starts at 1)
+        int_vecs = [None] + int_vecs
+        is_ordered = self._int_vec_is_ordered
+        valid_vec = [k
+                     for k in range(1, theta_projected.size() + 1)
+                     if is_ordered(int_vecs[k])]
+        to_spart = self._int_vec_to_spart
+        # TODO verify that the coef are in the right ring
+        spart_coef = {to_spart(int_vecs[k]): theta_projected[k].leadcoef()
+                      for k in valid_vec}
+        return spart_coef
+
 
     def monomial(self, spart):
         composition = list(spart[0]) + list(spart[1])
         super_ns_mono = self.ns_monomial(composition)
         if len(spart[0]) > 0:
-            thetas = ['theta_%d' % (k) for k in range(spart.fermionic_degree())]
+            thetas = ['theta_%d' % (k)
+                      for k in range(spart.fermionic_degree())]
             thetas = singular('*'.join(thetas))
             super_ns_mono = thetas*super_ns_mono
         symmed = self.symmetrize(super_ns_mono)
@@ -269,6 +309,5 @@ class superspace:
         normal = QQ(spart.n_lambda())
         normal = 1/normal
         print('normal', normal)
-        super_mono = normal*symmed 
+        super_mono = normal*symmed
         return super_mono
-
