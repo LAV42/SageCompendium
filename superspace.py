@@ -3,6 +3,8 @@ from sage.interfaces.singular import singular
 from superpartition import _Superpartitions, Superpartitions
 from sage.rings.rational_field import QQ
 from sage.groups.perm_gps.permgroup_named import SymmetricGroup
+from sage.functions.other import factorial
+from sym_superfunct import unique_perm_list_elements 
 singular.lib('nctools.lib')
 
 
@@ -137,12 +139,15 @@ class superspace:
         X = self._x_var
         permutations = SN
         # We generate the permutations of the list of variables
+        # Here we take permutations of length 1 since f is symmetric 
+        # if f = K_ij f for all ij. 
         permVars = [['dtheta'] + permutation(Theta) + permutation(X)
-                    for permutation in permutations]
+                    for permutation in permutations
+                    if permutation.length() == 1]
         # join everything as a big string
         maps_arg = [','.join(new_vars) for new_vars in permVars]
         # Dimensions for the future Singular matrix
-        matrix_dim = (SN.cardinality(), 2*N+1)
+        matrix_dim = (len(permVars), 2*N+1)
         # Code needed for the Matrix declaration
         # MM[i][j] where each row is a new permuation and j are the
         # theta_0, theta_1, ....
@@ -191,7 +196,7 @@ class superspace:
 
     # There is still a bug somewhere
     # The factor in front of the whole thing is too big
-    def symmetrize(self, expr, condition=None):
+    def symmetrize(self, expr, condition=None, normalize='nbvar'):
         """Symmetrize (in superspace) a Singular expression."""
         r"""
             Note that calling superspace.apply_permuation(expr) multiple times
@@ -210,17 +215,13 @@ class superspace:
         X = self._x_var
         permutations = SN
         # We generate the permutations of the list of variables
-        if condition is not None:
-            permVars = [['dtheta'] + permutation(Theta) + permutation(X)
-                        for permutation in permutations
-                        if condition(permutation)]
-        else:
-            permVars = [['dtheta'] + permutation(Theta) + permutation(X)
-                        for permutation in permutations]
+        permVars = [['dtheta'] + permutation(Theta) + permutation(X)
+                    for permutation in permutations]
         # join everything as a big string
+        number_of_maps = len(permVars)
         maps_arg = [','.join(new_vars) for new_vars in permVars]
         # Dimensions for the future Singular matrix
-        matrix_dim = (SN.cardinality(), 2*N+1)
+        matrix_dim = (number_of_maps, 2*N+1)
         # Code needed for the Matrix declaration
         # MM[i][j] where each row is a new permuation and j are the 
         # theta_0, theta_1, ....
@@ -294,8 +295,41 @@ class superspace:
                       for k in valid_vec}
         return spart_coef
 
-
     def monomial(self, spart):
+        N = self._N
+        super_composition = ([str(part) for part in spart[0]] +
+                             [part for part in spart[1]])
+        add_zeros = [0 for k in range(N-len(super_composition))]
+        super_composition = super_composition + add_zeros
+        permutations = unique_perm_list_elements(super_composition)
+        ferm_perms = [[int(k) for k in a_perm if isinstance(k, str)]
+                      for a_perm in permutations]
+        inversions = [number_of_inversions(ferm_perm)
+                      for ferm_perm in ferm_perms]
+
+        def id_val_to_term(index, val):
+            if isinstance(val, str):
+                out = 'theta_' + str(index) + '*x_' + str(index) + '^'+val
+            else:
+                out = 'x_' + str(index) + '^' + str(val)
+            return out
+        monos_as_lists = [
+            [id_val_to_term(k, a_comp[k])
+             for k in range(len(a_comp))
+             if a_comp[k] != 0]
+            for a_comp in permutations]
+        nb_monos = len(monos_as_lists)
+        ferm_degree = spart.fermionic_degree()
+        over_all_sign = (((ferm_degree - 1) * ferm_degree) / 2)
+        inversions = [over_all_sign + inv for inv in inversions]
+        monos = ['(-1)^' + str(inversions[k]) + '*' +
+                 '*'.join(monos_as_lists[k])
+                 for k in range(nb_monos)]
+        m_lambda = singular('+'.join(monos))
+        return m_lambda
+
+    def _slow_monomial(self, spart):
+        N = self._N
         composition = list(spart[0]) + list(spart[1])
         super_ns_mono = self.ns_monomial(composition)
         if len(spart[0]) > 0:
@@ -303,11 +337,22 @@ class superspace:
                       for k in range(spart.fermionic_degree())]
             thetas = singular('*'.join(thetas))
             super_ns_mono = thetas*super_ns_mono
-        symmed = self.symmetrize(super_ns_mono)
+        symmed = self.symmetrize(super_ns_mono, len(composition))
         # For some reason I have to cast the number to QQ
         # Otherwise sage returns 0 for 1/normal. I have no idea why.
-        normal = QQ(spart.n_lambda())
-        normal = 1/normal
-        print('normal', normal)
+        normal = QQ(spart.n_lambda()*factorial(N - len(spart)))
+        normal = singular(1/normal)
         super_mono = normal*symmed
         return super_mono
+
+
+def number_of_inversions(aList):
+    """Return the number of inversion of a list."""
+    inv_list = [
+        sum(
+            [
+                1 for j in range(k, len(aList)) if aList[k] > aList[j]
+            ])
+        for k in range(len(aList) - 1)
+    ]
+    return sum(inv_list)
