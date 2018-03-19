@@ -69,20 +69,25 @@ class superspace:
                           if ferm]
         if sorted(fermionic_part, reverse=True) == fermionic_part:
             is_sorted = True
-            # Make sure we exit as soon as we know since this is going to be
-            # called quite a lot
-            if not is_sorted:
-                return False
+        # Make sure we exit as soon as we know since this is going to be
+        # called quite a lot
+        if not is_sorted:
+            return False
         bosonic_part = [part
                         for (part, ferm) in zip(x_var, thetas)
                         if not ferm]
         # Here we keep the extra 0's because [4,2,0,1] is not ordered 
         # but [4,2,1,0] is 
-        bosonic_part = [value for value in bosonic_part]
+        # bosonic_part = [value for value in bosonic_part]
+        print('part', bosonic_part)
         if sorted(bosonic_part, reverse=True) == bosonic_part:
             # We don't have to `and` with previous result because
-            # at this point is_sorted can't be True
+            # at this point is_sorted can't be False
             is_sorted = True
+        else:
+            is_sorted = False
+        print('sorted', sorted(bosonic_part, reverse=True))
+        print(is_sorted, bosonic_part)
 
         return is_sorted
 
@@ -270,7 +275,8 @@ class superspace:
             theta_1_m = singular('*'.join(theta_1_m))
         # Here we only take the part of expr that is multiplied by 
         # theta_0...theta_ferm_degree because the rest of the expression
-        # doesn't have more informations. 
+        # doesn't have more information. 
+        # In the following call:
         # the [1] is to select the power theta...^1
         # the [2] gives us the expression that multiplies theta...^1
         # Note that Singular indices start at 1
@@ -284,6 +290,7 @@ class superspace:
         int_vecs = [mono.leadexp().sage() for mono in theta_projected]
         # Here I add a dummy element at the begining of int_vecs so that
         # indices matches those of theta_projected (which starts at 1)
+        # This is only to limit confusion. 
         int_vecs = [None] + int_vecs
         is_ordered = self._int_vec_is_ordered
         valid_vec = [k
