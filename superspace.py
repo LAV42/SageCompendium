@@ -47,6 +47,18 @@ class superspace:
                " With alphabet theta_0 ... theta_N-1, x_0 ... x_N-1.")
         return out
 
+    def SN(self):
+        """Return the class instance of the symmetric group."""
+        return self._SN
+
+    def x_vars(self):
+        """Return a list of the x variables."""
+        return [singular(x) for x in self._x_var]
+
+    def theta_vars(self):
+        """Return a list of the theta variables."""
+        return [singular(theta) for theta in self._theta_var]
+
     def diff(self, expr, var, dtheta=None):
         """Differentiate in superspace."""
         r"""
@@ -68,7 +80,7 @@ class superspace:
             new_expr = singular.substitute(expr, var, dtheta)
             new_expr = singular.diff(new_expr, dtheta)
         else:
-            new_expr = singular.diff(new_expr, var)
+            new_expr = singular.diff(expr, var)
         return new_expr
 
     def get_sector(self, expr):
