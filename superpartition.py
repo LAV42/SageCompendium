@@ -15,6 +15,7 @@ from sage.functions.other import factorial
 from sage.misc.misc_c import prod
 from sage.combinat.partition import Partition
 from sage.misc.cachefunc import cached_function, cached_method
+from sage.rings.rational_field import QQ
 
 
 class BosonicPartition(ClonableArray):
@@ -336,7 +337,16 @@ class Superpartition(ClonableArray):
         out = prod([
             k**part_dict[k] * factorial(part_dict[k])
             for k in part_dict.keys()])
+        return QQ(out)
+
+    def n_lambda(self):
+        spart = self
+        part_dict = Counter(list(spart[1]))
+        out = prod([
+            factorial(part_dict[k])
+            for k in part_dict.keys()])
         return out
+
 
     def conjugate(self):
         part_pair = self.partition_pair()
