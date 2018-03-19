@@ -41,6 +41,12 @@ class superspace:
         self._x_var = x_var
         self._theta_var = theta_var
 
+    def __repr__(self):
+        """Give basic informations about ring."""
+        out = ("Superspace in 2*" + str(self._N) + " variables." +
+               " With alphabet theta_0 ... theta_N-1, x_0 ... x_N-1.")
+        return out
+
     def diff(self, expr, var, dtheta=None):
         """Differentiate in superspace."""
         r"""

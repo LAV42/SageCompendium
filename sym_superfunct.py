@@ -29,6 +29,7 @@ from sage.arith.all import gcd, lcm
 # from sage.misc.flatten import flatten
 from sage.structure.sage_object import load, save
 from sage.matrix.constructor import Matrix
+from sage.interfaces.singular import singular
 
 
 def super_init():
@@ -813,6 +814,10 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
                 term2 = prod(term2)
                 return term1*term2*cls.z_lambda(spart)
 
+            def from_polynomial(self, expr, superspace):
+                mono = self.realization_of().Monomial()
+                return self(mono._pol_to_mono(expr, superspace))
+
         class ElementMethods:
             """Code common to elements of all bases of the algebras."""
 
@@ -840,6 +845,12 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
                 # omega(powersum_expr) -> element
                 P = self.parent().realization_of().Powersum()
                 return self.parent(P(self).omega())
+
+            def expand(self, superspace):
+                """Expand the expression in terms of variables."""
+                mono = self.parent().realization_of().Monomial()
+                expr = mono(self)._mono_expand(superspace)
+                return expr
 
             def omega_alpha(self, in_alpha=None):
                 """Alpha deformation of the involution omega."""
@@ -980,6 +991,17 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
             """Return the partition of element one."""
             return _Superpartitions([[], []])
 
+        def _pol_to_mono(self, expr, superspace):
+            """Convert a polynomial to an expression of monomials."""
+            ss = superspace
+            spart_coef = ss.var_to_monomials(expr)
+            m = self
+            BR = self.base_ring()
+            monos = self.linear_combination((m(spart), BR(coeff))
+                                            for spart, coeff
+                                            in spart_coef.items())
+            return monos
+
         @cached_method
         def product_on_basis(self, left, right):
             """Give the monomial expansion of the product of two monomials."""
@@ -1103,6 +1125,26 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
                     for y in sets]
             ]
             return the_sign * prod(coeff_set)
+
+        class Element(CombinatorialFreeModule.Element):
+            """Class for methods of elements of Monomial."""
+
+            def _mono_expand(self, superspace):
+                ss = superspace
+                spart_coef = self.monomial_coefficients()
+                sparts = spart_coef.keys()
+                max_len = max([len(spart) for spart in sparts])
+                if max_len > ss._N:
+                    print('Warning, the number of variables of this superspace'
+                          ' is less than the length of the longest'
+                          ' superpartition, any monomial with len(lambda) > N'
+                          ' will be set to 0.')
+                var_monos = {
+                    spart: singular(spart_coef[spart])*ss.monomial(spart)
+                    for spart in spart_coef
+                }
+                expr = sum(var_monos.values())
+                return expr
 
     m = Monomial
 
