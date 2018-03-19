@@ -1,10 +1,10 @@
 """Allows the manipulation of superpolynomials in variables."""
 from sage.interfaces.singular import singular
-from superpartition import _Superpartitions, Superpartitions
+from superpartition import _Superpartitions
 from sage.rings.rational_field import QQ
 from sage.groups.perm_gps.permgroup_named import SymmetricGroup
 from sage.functions.other import factorial
-from sym_superfunct import unique_perm_list_elements 
+from sym_superfunct import unique_perm_list_elements
 singular.lib('nctools.lib')
 
 
@@ -13,6 +13,11 @@ class superspace:
 
     def __init__(self, N, parameters=['q', 't', 'alpha']):
         """Define a superspace in 2*N+1 variables using singular."""
+        r"""
+            The +1 in the number of variables is due to a Dummy fermionic
+            variable that we introduce so that differentiation works.
+            The variables are x_i, theta_i for 0<= i < N.
+        """
         x_var = ['x_'+str(k) for k in range(N)]
         theta_var = ['theta_'+str(k) for k in range(N)]
         names = (['dtheta'] + theta_var + x_var)
@@ -38,6 +43,19 @@ class superspace:
 
     def diff(self, expr, var, dtheta=None):
         """Differentiate in superspace."""
+        r"""
+            This is a work around since the differentiation in superspace is
+            not implemented in singular. It works fine though, but this
+            workaround makes it so that one cannot use robustely his own
+            alphabet.
+
+            The idea is that the dummy indices is the first in the
+            lexicographic order, so if we want to differentiate with respect to
+            theta_3 for instance, substituting theta_3 for the dummy variable
+            will bring it all the way upfront of the monomial hence producing
+            the right sign. Then differentiation will simply remove the dummy
+            variable and the resulting in the right expression.
+        """
         if var*var == 0:
             if dtheta is None:
                 dtheta = globals()['dummy_odd']
@@ -55,7 +73,6 @@ class superspace:
         bosonic_degree = sum(vec[N+1:])
         return (bosonic_degree, fermionic_degree)
 
-    # TODO: Check if it works
     def _int_vec_is_ordered(self, intvec):
         """Check wether the intvec taken from a supermonomial is a spart."""
         N = self._N
@@ -76,23 +93,17 @@ class superspace:
         bosonic_part = [part
                         for (part, ferm) in zip(x_var, thetas)
                         if not ferm]
-        # Here we keep the extra 0's because [4,2,0,1] is not ordered 
-        # but [4,2,1,0] is 
-        # bosonic_part = [value for value in bosonic_part]
-        print('part', bosonic_part)
+        # Here we keep the extra 0's because [4,2,0,1] is not ordered
+        # but [4,2,1,0] is.
         if sorted(bosonic_part, reverse=True) == bosonic_part:
             # We don't have to `and` with previous result because
             # at this point is_sorted can't be False
             is_sorted = True
         else:
             is_sorted = False
-        print('sorted', sorted(bosonic_part, reverse=True))
-        print(is_sorted, bosonic_part)
 
         return is_sorted
 
-
-    # TODO: Check if it works.
     def _int_vec_to_spart(self, intvec):
         """Give the spart associated to the degree of a supermonomial."""
         """
@@ -137,15 +148,15 @@ class superspace:
         return mono
 
     def is_symmetric(self, expr):
-        """Check if expr is symmetric in N variables."""
+        """Check if expr is symmetric in the current superspace."""
         N = self._N
         SN = self._SN
         Theta = self._theta_var
         X = self._x_var
         permutations = SN
         # We generate the permutations of the list of variables
-        # Here we take permutations of length 1 since f is symmetric 
-        # if f = K_ij f for all ij. 
+        # Here we take permutations of length 1 since f is symmetric
+        # if f = K_ij f for all ij.
         permVars = [['dtheta'] + permutation(Theta) + permutation(X)
                     for permutation in permutations
                     if permutation.length() == 1]
@@ -189,6 +200,7 @@ class superspace:
         return bool(out)
 
     def apply_permuation(self, expr, permutation):
+        """Apply to expr a permutation of variables."""
         Theta = self._theta_var
         X = self._x_var
         KwTheta = permutation(Theta)
@@ -199,8 +211,7 @@ class superspace:
         new_expr = sing_map(expr)
         return new_expr
 
-    # There is still a bug somewhere
-    # The factor in front of the whole thing is too big
+    # This method is fine but really sub-optimal.
     def symmetrize(self, expr, condition=None, normalize='nbvar'):
         """Symmetrize (in superspace) a Singular expression."""
         r"""
@@ -213,6 +224,14 @@ class superspace:
             the number of times Sage has to give statements to Singular, this
             is typically the biggest bottleneck. The reason is that Sage
             is kind of typing everything in a internal singular_console().
+
+            Note that this is very slow for a large number of variables.
+            Because it is not obvious how to generate elements of S_N such that
+            each permutation yields an unique result. So we compute
+            non-distinct permutations. For instance, symmetrizing x_1^3 for N=4
+            will yield a coefficient of 3!.
+
+            This is why this method is not used for monomial computation.
         """
         N = self._N
         SN = self._SN
@@ -228,7 +247,7 @@ class superspace:
         # Dimensions for the future Singular matrix
         matrix_dim = (number_of_maps, 2*N+1)
         # Code needed for the Matrix declaration
-        # MM[i][j] where each row is a new permuation and j are the 
+        # MM[i][j] where each row is a new permuation and j are the
         # theta_0, theta_1, ....
         matrix_declaration = ('matrix MM'+'[%d][%d]' % matrix_dim +
                               '=' + ','.join(maps_arg) + ';')
@@ -262,6 +281,12 @@ class superspace:
         return out
 
     def var_to_monomials(self, expr, check_sym=True):
+        """Take an expr in variables and return a {spart:coef} dict."""
+        r"""
+            If one is sure that the expression is indeed symmetric, on should
+            set check_sym=False because this is a onerous operation, especialy
+            with N>8.
+        """
         if check_sym:
             if not self.is_symmetric(expr):
                 print("This superpolynomial is not symmetric.")
@@ -273,9 +298,9 @@ class superspace:
         else:
             theta_1_m = ['theta_'+str(k) for k in range(ferm_degree)]
             theta_1_m = singular('*'.join(theta_1_m))
-        # Here we only take the part of expr that is multiplied by 
+        # Here we only take the part of expr that is multiplied by
         # theta_0...theta_ferm_degree because the rest of the expression
-        # doesn't have more information. 
+        # doesn't have more information.
         # In the following call:
         # the [1] is to select the power theta...^1
         # the [2] gives us the expression that multiplies theta...^1
@@ -290,7 +315,7 @@ class superspace:
         int_vecs = [mono.leadexp().sage() for mono in theta_projected]
         # Here I add a dummy element at the begining of int_vecs so that
         # indices matches those of theta_projected (which starts at 1)
-        # This is only to limit confusion. 
+        # This is only to limit confusion.
         int_vecs = [None] + int_vecs
         is_ordered = self._int_vec_is_ordered
         valid_vec = [k
@@ -303,23 +328,38 @@ class superspace:
         return spart_coef
 
     def monomial(self, spart):
+        """Return the monomial expanded in terms of variables."""
         N = self._N
+        # If we are under the stability limit, we send the monomial to zero.
+        if len(spart) > N:
+            return 0
+        # We create a composition where fermionic parts are strings and bosonic
+        # parts are int
         super_composition = ([str(part) for part in spart[0]] +
                              [part for part in spart[1]])
+        # We extend the composition so that it fits with the number of vars
         add_zeros = [0 for k in range(N-len(super_composition))]
         super_composition = super_composition + add_zeros
+        # We permute the elements of the compositions in every distinct ways
         permutations = unique_perm_list_elements(super_composition)
+        # We get the permutations of the fermionic parts, this allows us to
+        # compute the number of inversion that has occurend during the
+        # permutation process. For each inversion the sign has to flip.
         ferm_perms = [[int(k) for k in a_perm if isinstance(k, str)]
                       for a_perm in permutations]
         inversions = [number_of_inversions(ferm_perm)
                       for ferm_perm in ferm_perms]
 
+        # We construct the string expression for Singular to handle
+        # This is a local method that take one element of the composition and
+        # return the appropirate string
         def id_val_to_term(index, val):
             if isinstance(val, str):
                 out = 'theta_' + str(index) + '*x_' + str(index) + '^'+val
             else:
                 out = 'x_' + str(index) + '^' + str(val)
             return out
+        # Maping the previous functions on every element we get the monomials
         monos_as_lists = [
             [id_val_to_term(k, a_comp[k])
              for k in range(len(a_comp))
@@ -327,15 +367,20 @@ class superspace:
             for a_comp in permutations]
         nb_monos = len(monos_as_lists)
         ferm_degree = spart.fermionic_degree()
+        # We compute the overall sign (because we need the inverse number of
+        # inversion for the sign to be right.
         over_all_sign = (((ferm_degree - 1) * ferm_degree) / 2)
         inversions = [over_all_sign + inv for inv in inversions]
+        # We then generate every monomial
         monos = ['(-1)^' + str(inversions[k]) + '*' +
                  '*'.join(monos_as_lists[k])
                  for k in range(nb_monos)]
+        # Adding them togeter we get the symmetric superpolynomial
         m_lambda = singular('+'.join(monos))
         return m_lambda
 
     def _slow_monomial(self, spart):
+        """Old method for monomial genration."""
         N = self._N
         composition = list(spart[0]) + list(spart[1])
         super_ns_mono = self.ns_monomial(composition)
