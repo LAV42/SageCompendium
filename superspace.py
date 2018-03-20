@@ -5,6 +5,7 @@ from sage.rings.rational_field import QQ
 from sage.groups.perm_gps.permgroup_named import SymmetricGroup
 from sage.functions.other import factorial
 from sym_superfunct import unique_perm_list_elements
+from sage.misc.misc_c import prod
 singular.lib('nctools.lib')
 
 
@@ -82,6 +83,22 @@ class superspace:
         else:
             new_expr = singular.diff(expr, var)
         return new_expr
+
+    def theta_project(self, expr):
+        """Return the coefficient of theta_0..theta_{m-1}."""
+        _, fermionic_sect = self.get_sector(expr)
+        theta_monomial = prod(self.theta_vars()[:fermionic_sect])
+        expr = expr.coef(theta_monomial)[1][2]
+        return expr
+
+    def vandermonde(self, fermionic_sector):
+        """Return the Vandermonde of fermionic_sector variables."""
+        X = self.x_vars()
+        xij = [X[i] - X[j]
+               for j in range(fermionic_sector)
+               for i in range(j)]
+        delta_m = prod(xij)
+        return delta_m
 
     def get_sector(self, expr):
         """Given an expression, return the sector to which it belongs."""

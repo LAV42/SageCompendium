@@ -861,9 +861,7 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
                 alpha = in_alpha
                 if in_alpha is None:
                     alpha = BR.gens_dict()['alpha']
-                print(BR)
                 one = BR.one()
-                print(alpha)
                 out = P._from_dict(
                     {
                         spart:
@@ -1307,7 +1305,36 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
 
         class Element(CombinatorialFreeModule.Element):
             """Jack element class."""
-            pass
+
+            def evaluation(self, NbVars):
+                BR = self.base_ring()
+                alpha = BR.gens_dict()['alpha']
+
+                def _eval_spart(spart, N, alpha):
+                    BLambda = spart.bosonic_cells()
+                    hooks = [spart.lower_hook_length(i, j, alpha)
+                             for i, j in BLambda]
+                    vlambda = reduce(operator.mul, hooks, 1)
+
+                    ferm_deg = spart.fermionic_degree()
+                    delta_m = _Superpartitions([[], range(ferm_deg, 0, -1)])
+                    delta_m_coords = delta_m.cells()
+
+                    spart_CS = _Superpartitions([[],
+                                                 list(spart.circle_star())])
+                    coords = spart_CS.cells()
+                    deltaLambda = [coord
+                                   for coord in coords
+                                   if coord not in delta_m_coords]
+                    second_prod = [N - (i - 1) + alpha*(j - 1)
+                                   for (i, j) in deltaLambda]
+                    second_prod = reduce(operator.mul, second_prod, 1)
+                    return second_prod/vlambda
+
+                spart_coef = self.monomial_coefficients().items()
+                terms = [coef*_eval_spart(spart, NbVars, alpha)
+                         for spart, coef in spart_coef]
+                return reduce(operator.add, terms)
 
     class Macdonald(Basis):
         """Class for the Macdonald superpolynomials."""
