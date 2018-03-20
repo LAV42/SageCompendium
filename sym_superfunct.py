@@ -861,9 +861,7 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
                 alpha = in_alpha
                 if in_alpha is None:
                     alpha = BR.gens_dict()['alpha']
-                print(BR)
                 one = BR.one()
-                print(alpha)
                 out = P._from_dict(
                     {
                         spart:
