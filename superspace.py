@@ -247,7 +247,7 @@ class superspace:
         return new_expr
 
     # This method is fine but really sub-optimal.
-    def symmetrize(self, expr, condition=None, normalize='nbvar'):
+    def symmetrize(self, expr, condition=None, normalize=None):
         """Symmetrize (in superspace) a Singular expression."""
         r"""
             Note that calling superspace.apply_permuation(expr) multiple times
@@ -310,6 +310,7 @@ class superspace:
             # This will update the value of out in Sage.
             singular_out + "= out;"
             "kill out;"
+            "kill MM;"
         )
         # We send all of this to singular
         singular.eval(computemap)
@@ -324,8 +325,8 @@ class superspace:
         """
         if check_sym:
             if not self.is_symmetric(expr):
-                print("This superpolynomial is not symmetric.")
-                return 0
+                expt_str = "This superpolynomial is not symmetric."
+                raise Exception(expt_str)
         sector = self.get_sector(expr)
         ferm_degree = sector[1]
         if ferm_degree == 0:

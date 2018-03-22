@@ -1384,6 +1384,62 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
             norm = prefactor*reduce(operator.mul, terms, 1)
             return norm
 
+        class Element(CombinatorialFreeModule.Element):
+            """Class for methods on elements of Macdonald basis."""
+
+            def wqt_Lambda(self, q, t, spart):
+                """Return prod_B(Lambda) (1-q^(a_star(s)+1)*t^l_cstar(s))."""
+                bosonic_cells = spart.bosonic_cells()
+                star = spart.star()
+                cstar = spart.circle_star()
+                terms = [(1 -
+                          q**(star.arm_length(i, j) +
+                              1)*t**(cstar.leg_length(i, j)))
+                         for i, j in bosonic_cells]
+                return reduce(operator.mul, terms, 1)
+
+            def specialize(self, N, P_norm=True):
+                BR = self.base_ring()
+                params = BR.gens_dict()
+                q = params['q']
+                t = params['t']
+                wqt = self.wqt_Lambda
+
+                def _eval_spart(spart, wqt, N, q, t, P_norm):
+                    ferm_deg = spart.fermionic_degree()
+                    stair = _Superpartitions.stair(ferm_deg - 1)
+                    stairplus = _Superpartitions.stair(ferm_deg)
+
+                    zetaL = spart.zeta()
+                    bSL = spart.circle_star().b() - stairplus.b()
+                    exp_denom = (
+                        (ferm_deg - 1)*(spart[0].degree() - stair.degree()) -
+                        (spart[0].b() - stair.b()))
+                    Pnorm = 1/wqt(t, q, spart.conjugate())
+
+                    term1 = (t**(zetaL) * t**(bSL)) / (q**(exp_denom))
+                    if P_norm is True:
+                        term1 = term1/Pnorm
+
+                    stair = stairplus
+                    stair = _Superpartitions([[], list(stair)])
+                    stair_cells = stair.cells()
+                    csCells = spart.circle_star().cells()
+                    SLambda_cells = [s
+                                     for s in csCells
+                                     if s not in stair_cells]
+
+                    terms2 = [1 - q**(j-1)*t**(N-(i-1))
+                              for i, j in SLambda_cells]
+                    term2 = reduce(operator.mul, terms2, 1)
+
+                    return term1 * term2
+
+                spart_coef = self.monomial_coefficients().items()
+                terms = [coef*_eval_spart(spart, wqt, N, q, t, P_norm)
+                         for spart, coef in spart_coef]
+                return reduce(operator.add, terms)
+
 
 def normalize_coefficients(self, c):
     """Normalize. Helper functions, deprecating."""
