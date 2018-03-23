@@ -434,6 +434,57 @@ class superspace:
         return super_mono
 
 
+def expr_sym(composition, N, mm, ferms, convention):
+    K = QQ['q', 't'].fraction_field()
+    q, t = K.gens()
+    E = NonSymmetricMacdonaldPolynomials("A%d~" % (N-1), q, t, -1,
+                                         normalized=True)
+    KL = E._KL
+    # T=E._T
+    T= KL.twisted_demazure_lusztig_operators(t, -1, convention=convention)
+    print(T)
+    #T = E._T
+    L0 = E.L0()
+    ns_mac = E[L0(composition)]
+    Sslash = SymmetricGroup(range(mm+1, N+1))
+    # Sslash = SymmetricGroup(range(1, N-mm+1))
+    # Sslash = SymmetricGroup(N)
+    Uplus = [T.straighten_word(x.reduced_word()) for x in Sslash]
+    print(Uplus)
+    terms = [T.Tw(x)(ns_mac) for x in Uplus]
+    symmed = sum(terms)
+    temp_ring = K[','.join(['x_' + str(k) for k in range(N)])]
+    tvar = list(temp_ring.gens())
+    mac = symmed.expand(tvar)
+    Sm = SymmetricGroup(mm)
+    gens = temp_ring.gens()
+    #signed_perm =[[sigma.sign(), gens[:N-mm] + sigma(gens[-mm:])] for sigma in Sm]
+    signed_perm =[[sigma.sign(), sigma(gens[:mm]) + gens[mm:]] for sigma in Sm]
+    antimacs = [sign*mac(*perm) for sign, perm in signed_perm]
+    antimac = sum(antimacs)
+    print(antimac)
+    sing_mac = singular(antimac).normalize()
+    mac_str = str(sing_mac)
+    ss = superspace(N)
+    presc_mac = singular(mac_str).normalize()
+    # print(presc_mac)
+    super_presc_mac = theta_0*theta_1*presc_mac
+    # super_presc_mac = presc_mac
+    # print(super_presc_mac.leadexp())
+    sm = ss.symmetrize(super_presc_mac).normalize()
+    ss = superspace(N)
+    presc_mac = singular(mac_str).normalize()
+    # print(presc_mac)
+    s_ferm = singular(ferms)
+    super_presc_mac = s_ferm*presc_mac
+    # super_presc_mac = presc_mac
+    # print(super_presc_mac.leadexp())
+    sm = ss.symmetrize(super_presc_mac).normalize()
+    # super_init()
+    Pqt = Sym.Macdonald()
+    # print(singular.current_ring())
+    return Pqt.from_polynomial(sm,ss)
+
 def number_of_inversions(aList):
     """Return the number of inversion of a list."""
     inv_list = [
