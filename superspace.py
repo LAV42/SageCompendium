@@ -6,6 +6,8 @@ from sage.groups.perm_gps.permgroup_named import SymmetricGroup
 from sage.functions.other import factorial
 from sym_superfunct import unique_perm_list_elements
 from sage.misc.misc_c import prod
+from functools import reduce
+import operator
 singular.lib('nctools.lib')
 
 
@@ -433,57 +435,62 @@ class superspace:
         super_mono = normal*symmed
         return super_mono
 
+    def T_i(self, expr, i):
+        """Apply the Cherednik generator i on expression."""
+        SN = self._SN
+        t = singular('t')
+        X = self.x_vars()
+        term1 = t*expr
+        perm_expr = self.apply_permuation(expr, SN((i, i+1)))
+        term2a = (t*X[i] - X[i+1])*(perm_expr - expr)
+        term2 = term2a.division(X[i] - X[i+1])[1][1,1]
+        return term1 + term2
 
-def expr_sym(composition, N, mm, ferms, convention):
-    K = QQ['q', 't'].fraction_field()
-    q, t = K.gens()
-    E = NonSymmetricMacdonaldPolynomials("A%d~" % (N-1), q, t, -1,
-                                         normalized=True)
-    KL = E._KL
-    # T=E._T
-    T= KL.twisted_demazure_lusztig_operators(t, -1, convention=convention)
-    print(T)
-    #T = E._T
-    L0 = E.L0()
-    ns_mac = E[L0(composition)]
-    Sslash = SymmetricGroup(range(mm+1, N+1))
-    # Sslash = SymmetricGroup(range(1, N-mm+1))
-    # Sslash = SymmetricGroup(N)
-    Uplus = [T.straighten_word(x.reduced_word()) for x in Sslash]
-    print(Uplus)
-    terms = [T.Tw(x)(ns_mac) for x in Uplus]
-    symmed = sum(terms)
-    temp_ring = K[','.join(['x_' + str(k) for k in range(N)])]
-    tvar = list(temp_ring.gens())
-    mac = symmed.expand(tvar)
-    Sm = SymmetricGroup(mm)
-    gens = temp_ring.gens()
-    #signed_perm =[[sigma.sign(), gens[:N-mm] + sigma(gens[-mm:])] for sigma in Sm]
-    signed_perm =[[sigma.sign(), sigma(gens[:mm]) + gens[mm:]] for sigma in Sm]
-    antimacs = [sign*mac(*perm) for sign, perm in signed_perm]
-    antimac = sum(antimacs)
-    print(antimac)
-    sing_mac = singular(antimac).normalize()
-    mac_str = str(sing_mac)
-    ss = superspace(N)
-    presc_mac = singular(mac_str).normalize()
-    # print(presc_mac)
-    super_presc_mac = theta_0*theta_1*presc_mac
-    # super_presc_mac = presc_mac
-    # print(super_presc_mac.leadexp())
-    sm = ss.symmetrize(super_presc_mac).normalize()
-    ss = superspace(N)
-    presc_mac = singular(mac_str).normalize()
-    # print(presc_mac)
-    s_ferm = singular(ferms)
-    super_presc_mac = s_ferm*presc_mac
-    # super_presc_mac = presc_mac
-    # print(super_presc_mac.leadexp())
-    sm = ss.symmetrize(super_presc_mac).normalize()
-    # super_init()
-    Pqt = Sym.Macdonald()
-    # print(singular.current_ring())
-    return Pqt.from_polynomial(sm,ss)
+    def Tw(self, expr, w):
+        """Apply Ti for a list of elementary permutations."""
+        if len(w) == 0:
+            return expr
+        apply_on = expr
+        for i in w:
+            apply_on = self.T_i(apply_on, i)
+        return apply_on
+
+    def _mac_from_ns(self, composition, mm):
+        """Return the sMacdo obtained with the non-symmetric Macdonald."""
+        r"""
+            This is intended as a test method.
+        """
+        from sage.combinat.sf.ns_macdonald import E
+        N = self._N
+        q, t = QQ['q', 't'].fraction_field().gens()
+        theta = self.theta_vars()
+        # The ordering on composition is backward from ours.
+        in_comp = composition
+        in_comp.reverse()
+        rev = range(1, N+1)
+        rev.reverse()
+        perm = Permutation(rev)
+        # We have to permute the variables since the composition ordering is
+        # backward, so must be the variables that is what pi=... does.
+        ns_mac = E(in_comp, q, t, pi=perm)
+        # We prepare the expression for singular
+        string_list = str(ns_mac).split('x')
+        singular_str = 'x_'.join(string_list)
+        ns_mac_sing = singular(singular_str)
+        # We generate the permutations [mm, ... N-1]
+        Sslash = SymmetricGroup(range(mm, N))
+        # Express them as chains of elementary permutations
+        elem = [x.reduced_word() for x in Sslash]
+        # We do the appropriate symmetrization
+        terms = [self.Tw(ns_mac_sing, w) for w in elem]
+        presc_mac = sum(terms).normalize()
+        # We multiply by theta_0 ... theta_(m-1)
+        super_presc = reduce(operator.mul, theta[:mm], 1)*presc_mac
+        # Symmetrize the result
+        macdo = self.symmetrize(super_presc).normalize()
+
+        return macdo
+
 
 def number_of_inversions(aList):
     """Return the number of inversion of a list."""
