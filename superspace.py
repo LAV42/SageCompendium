@@ -6,6 +6,8 @@ from sage.groups.perm_gps.permgroup_named import SymmetricGroup
 from sage.functions.other import factorial
 from sym_superfunct import unique_perm_list_elements
 from sage.misc.misc_c import prod
+from functools import reduce
+import operator
 singular.lib('nctools.lib')
 
 
@@ -247,7 +249,7 @@ class superspace:
         return new_expr
 
     # This method is fine but really sub-optimal.
-    def symmetrize(self, expr, condition=None, normalize='nbvar'):
+    def symmetrize(self, expr, condition=None, normalize=None):
         """Symmetrize (in superspace) a Singular expression."""
         r"""
             Note that calling superspace.apply_permuation(expr) multiple times
@@ -310,6 +312,7 @@ class superspace:
             # This will update the value of out in Sage.
             singular_out + "= out;"
             "kill out;"
+            "kill MM;"
         )
         # We send all of this to singular
         singular.eval(computemap)
@@ -324,8 +327,8 @@ class superspace:
         """
         if check_sym:
             if not self.is_symmetric(expr):
-                print("This superpolynomial is not symmetric.")
-                return 0
+                expt_str = "This superpolynomial is not symmetric."
+                raise Exception(expt_str)
         sector = self.get_sector(expr)
         ferm_degree = sector[1]
         if ferm_degree == 0:
@@ -431,6 +434,62 @@ class superspace:
         normal = singular(1/normal)
         super_mono = normal*symmed
         return super_mono
+
+    def T_i(self, expr, i):
+        """Apply the Cherednik generator i on expression."""
+        SN = self._SN
+        t = singular('t')
+        X = self.x_vars()
+        term1 = t*expr
+        perm_expr = self.apply_permuation(expr, SN((i, i+1)))
+        term2a = (t*X[i] - X[i+1])*(perm_expr - expr)
+        term2 = term2a.division(X[i] - X[i+1])[1][1, 1]
+        return term1 + term2
+
+    def Tw(self, expr, w):
+        """Apply Ti for a list of elementary permutations."""
+        if len(w) == 0:
+            return expr
+        apply_on = expr
+        for i in w:
+            apply_on = self.T_i(apply_on, i)
+        return apply_on
+
+    def _mac_from_ns(self, composition, mm):
+        """Return the sMacdo obtained with the non-symmetric Macdonald."""
+        r"""
+            This is intended as a test method.
+        """
+        from sage.combinat.sf.ns_macdonald import E
+        N = self._N
+        q, t = QQ['q', 't'].fraction_field().gens()
+        theta = self.theta_vars()
+        # The ordering on composition is backward from ours.
+        in_comp = composition
+        in_comp.reverse()
+        rev = range(1, N+1)
+        rev.reverse()
+        perm = Permutation(rev)
+        # We have to permute the variables since the composition ordering is
+        # backward, so must be the variables that is what pi=... does.
+        ns_mac = E(in_comp, q, t, pi=perm)
+        # We prepare the expression for singular
+        string_list = str(ns_mac).split('x')
+        singular_str = 'x_'.join(string_list)
+        ns_mac_sing = singular(singular_str)
+        # We generate the permutations [mm, ... N-1]
+        Sslash = SymmetricGroup(range(mm, N))
+        # Express them as chains of elementary permutations
+        elem = [x.reduced_word() for x in Sslash]
+        # We do the appropriate symmetrization
+        terms = [self.Tw(ns_mac_sing, w) for w in elem]
+        presc_mac = sum(terms).normalize()
+        # We multiply by theta_0 ... theta_(m-1)
+        super_presc = reduce(operator.mul, theta[:mm], 1)*presc_mac
+        # Symmetrize the result
+        macdo = self.symmetrize(super_presc).normalize()
+
+        return macdo
 
 
 def number_of_inversions(aList):

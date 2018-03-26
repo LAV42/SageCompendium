@@ -67,6 +67,16 @@ class BosonicPartition(ClonableArray):
             else:
                 return False
 
+    def cells(self):
+        """Return the cells of the partition."""
+        """
+            Note that we use the convention that the first cell is (1,1)
+        """
+        part = Partition(list(self))
+        coordinates = part.cells()
+        coordinates = [(x+1, y+1) for x, y in coordinates]
+        return coordinates
+
     def degree(self):
         """Return the degree of partition."""
         return sum(self)
@@ -96,6 +106,12 @@ class BosonicPartition(ClonableArray):
         """Return the arm length associated with coordinates."""
         i, j = args
         return Partition(list(self)).arm_length(i-1, j-1)
+
+    def b(self):
+        """Return sum_i (i-1)*lambda_i."""
+        lambd = list(self)
+        terms = [(i)*lambd[i] for i in range(len(lambd))]
+        return sum(terms)
 
 
 class BosonicPartitions(UniqueRepresentation, Parent):
@@ -318,17 +334,35 @@ class Superpartition(ClonableArray):
         coords = [x for x in cells if x not in fermionic_cells]
         return coords
 
+    def zeta(self):
+        """Return the combinatorial data zeta."""
+        r"""
+            zeta_\Lambda is defined as follow:
+                for each fermionic box, count the number of bosonic boxes that
+                are over it. Sum all these numbers, this is zeta_Lambda.
+        """
+        fermionic_cells = self.fermionic_cells()
+        bosonic_cells = self.bosonic_cells()
+        zetas = [1
+                 for bos_box in bosonic_cells
+                 for fer_box in fermionic_cells
+                 if (bos_box[0] < fer_box[0] and bos_box[1] == fer_box[1])]
+        return sum(zetas)
+
     def upper_hook_length(self, i, j, parameter):
+        """Return the upper hook length."""
         leg = self.circle_star().leg_length(i, j)
         arm = self.star().arm_length(i, j)
         return leg + parameter*(arm + 1)
 
     def lower_hook_length(self, i, j, parameter):
+        """Return the lower hook length."""
         leg = self.star().leg_length(i, j)
         arm = self.circle_star().arm_length(i, j)
         return leg + 1 + parameter*arm
 
     def partition_pair(self):
+        """Return Lambda^*, Lambda^(*)."""
         return [self.star(), self.circle_star()]
 
     def z_lambda(self):
@@ -499,6 +533,11 @@ class Superpartitions(UniqueRepresentation, Parent):
             for a_pair in itertools.product(fermi_iter, boson_iter):
                 yield _Superpartitions(list(a_pair))
                 # yield self.element_class(self, list(a_pair))
+
+    def stair(self, steps):
+        """Return a staircaise partition of size steps."""
+        s_list = range(steps, 0, -1)
+        return _BosonicPartitions(s_list)
 
     @staticmethod
     def partition_pair_to_spart(part_pair):
