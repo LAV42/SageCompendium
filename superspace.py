@@ -443,7 +443,7 @@ class superspace:
         term1 = t*expr
         perm_expr = self.apply_permuation(expr, SN((i, i+1)))
         term2a = (t*X[i] - X[i+1])*(perm_expr - expr)
-        term2 = term2a.division(X[i] - X[i+1])[1][1,1]
+        term2 = term2a.division(X[i] - X[i+1])[1][1, 1]
         return term1 + term2
 
     def Tw(self, expr, w):
