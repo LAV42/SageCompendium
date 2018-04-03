@@ -113,6 +113,10 @@ class BosonicPartition(ClonableArray):
         terms = [(i)*lambd[i] for i in range(len(lambd))]
         return sum(terms)
 
+    def n_lambda(self):
+        """Alternative name of b()."""
+        return self.b()
+
 
 class BosonicPartitions(UniqueRepresentation, Parent):
     """Class of the set of bosonic partitions. Parent class."""

@@ -388,7 +388,7 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
             self._update_cache(sector, sect_dict, which_cache='Jack_m')
             the_dict = sect_dict[spart]
         spart_coeff = the_dict.items()
-        mono_coeff = ((M(a_spart), BR(coeff))
+        mono_coeff = ((M(a_spart), BR(str(coeff)))
                       for a_spart, coeff in spart_coeff)
         out = M.linear_combination(mono_coeff)
         return out
