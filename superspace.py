@@ -435,6 +435,60 @@ class superspace:
         super_mono = normal*symmed
         return super_mono
 
+    def Djack(self, expr):
+        """Apply the D operator on expression."""
+        ss = self
+        N = ss._N
+        X = self.x_vars()
+        Theta = self.theta_vars()
+        alpha = singular('alpha')
+        # Terms of first term
+        list1 = [X[k]**2*ss.diff(ss.diff(expr, X[k]), X[k])
+                 for k in range(N)]
+
+        # Terms of second term
+        # We split it to avoid problems with division
+        list2 = [
+            (X[i]*X[j]*(ss.diff(expr, X[i]))).division(X[i] - X[j])[1][1, 1]
+            for i in range(N)
+            for j in range(N)
+            if i != j
+        ]
+        list3 = [
+            (X[i]*X[j]*(Theta[i] - Theta[j])*(
+                ss.diff(expr, Theta[i]))).division((X[i] - X[j])**2)[1][1, 1]
+            for i in range(N)
+            for j in range(N)
+            if i != j
+        ]
+        out = alpha/2*sum(list1) + sum(list2) - sum(list3)
+        return out
+
+    def DeltaJack(self, expr):
+        """Apply the Delta operator on expression."""
+        ss = self
+        N = ss._N
+        X = self.x_vars()
+        Theta = self.theta_vars()
+        alpha = singular('alpha')
+        # Terms of first term
+        list1 = [X[k]*Theta[k]*ss.diff(ss.diff(expr, Theta[k]), X[k])
+                 for k in range(N)]
+
+        # Terms of second term
+        list2 = [
+            ((X[i]*Theta[j]
+              + X[j]*Theta[i])*ss.diff(expr, Theta[i])
+             ).division(X[i] - X[j])[1][1, 1]
+            for i in range(N)
+            for j in range(N)
+            if i != j
+        ]
+        out = alpha*sum(list1) + sum(list2)
+        return out
+
+
+    # Macdonald polynomials
     def T_i(self, expr, i):
         """Apply the Cherednik generator i on expression."""
         SN = self._SN
