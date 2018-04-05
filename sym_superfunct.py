@@ -32,18 +32,6 @@ from sage.matrix.constructor import Matrix
 from sage.interfaces.singular import singular
 
 
-def super_init():
-    """Inject the basis and the coeff ring."""
-    global QQqta
-    global Sym
-    global Sparts
-    QQqta = QQ['q', 't', 'alpha'].fraction_field()
-    print("Defining QQqta as " + str(QQqta))
-    Sym = SymSuperfunctionsAlgebra(QQqta)
-    Sym.inject_shorthands()
-    Sparts = Superpartitions()
-
-
 def unique_permutations(seq):
     """Yield only unique permutations of seq in an efficient way."""
     """
@@ -1398,14 +1386,25 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
                          for i, j in bosonic_cells]
                 return reduce(operator.mul, terms, 1)
 
+            def hlo_Lambda(self, q, t, spart):
+                bosonic_cells = spart.bosonic_cells()
+                star = spart.star()
+                cstar = spart.circle_star()
+                terms = [(1 -
+                          q**(cstar.arm_length(i, j)
+                              )*t**(star.leg_length(i, j) + 1))
+                         for i, j in bosonic_cells]
+                return reduce(operator.mul, terms, 1)
+
             def specialize(self, N, P_norm=True):
                 BR = self.base_ring()
                 params = BR.gens_dict()
                 q = params['q']
                 t = params['t']
-                wqt = self.wqt_Lambda
+                #wqt = self.wqt_Lambda
+                wqt = self.hlo_Lambda
 
-                def _eval_spart(spart, wqt, N, q, t, P_norm):
+                def _eval_spart(spart, wqt, N, q, t):
                     ferm_deg = spart.fermionic_degree()
                     stair = _Superpartitions.stair(ferm_deg - 1)
                     stairplus = _Superpartitions.stair(ferm_deg)
@@ -1415,11 +1414,11 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
                     exp_denom = (
                         (ferm_deg - 1)*(spart[0].degree() - stair.degree()) -
                         (spart[0].b() - stair.b()))
-                    Pnorm = 1/wqt(t, q, spart.conjugate())
+                    #normp = wqt(t, q, spart.conjugate())
+                    normp = wqt(q, t, spart)
 
                     term1 = (t**(zetaL) * t**(bSL)) / (q**(exp_denom))
-                    if P_norm is True:
-                        term1 = term1/Pnorm
+                    term1 = (1/normp)*term1
 
                     stair = stairplus
                     stair = _Superpartitions([[], list(stair)])
@@ -1436,7 +1435,7 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
                     return term1 * term2
 
                 spart_coef = self.monomial_coefficients().items()
-                terms = [coef*_eval_spart(spart, wqt, N, q, t, P_norm)
+                terms = [coef*_eval_spart(spart, wqt, N, q, t)
                          for spart, coef in spart_coef]
                 return reduce(operator.add, terms)
 
