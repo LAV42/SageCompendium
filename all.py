@@ -14,6 +14,12 @@ def super_init():
     print("Defining QQqta as " + str(QQqta))
     Sym = SymSuperfunctionsAlgebra(QQqta)
     print("Defining Sym as " + str(Sym))
-    Sym.inject_shorthands()
+    global p, m, e, h
+    p = Sym.Powersum()
+    m = Sym.Monomial()
+    e = Sym.Elementary()
+    h = Sym.Homogeneous()
+    print("Defining m, p, e, h as monomial, powersum, elementary and"
+          "homogensous bases")
     Sparts = Superpartitions()
     print("Defining Sparts as " + str(Sparts))
