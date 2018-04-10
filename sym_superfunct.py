@@ -884,6 +884,14 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
                 )
                 return parent(out)
 
+            def rho_qt(self):
+                """The second automorphism in two parameters."""
+                P = self.parent().realization_of().Powersum()
+                parent = self.parent()
+                self_in_p = P(self)
+                rho_p = self_in_p.rho_qt()
+                return parent(rho_p)
+
             @cached_method
             def scalar_product(self, other):
                 """Apply scalar product for self * other."""
@@ -1187,6 +1195,28 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
             SymSuperfunctionsAlgebra.MultiplicativeBasis.__init__(
                 self, A, prefix='p')
 
+        def _rho_qt_spart(self, spart):
+            BR = self.base_ring()
+            P = self
+            q, t, _ = BR.gens()
+            bosonic = P(_Superpartitions([[], list(spart[1])]))
+            bosonic = bosonic.omega_qt()
+
+            ferm_list = list(spart[0])
+
+            def rho_ptilde(k, q, t, P):
+                sparts = Superpartitions(k, 1)
+                BR = P.base_ring()
+                p_list = [(-1)**(spart.bosonic_degree() - len(spart[1])) *
+                          (1/BR(P.z_lambda(spart))) *
+                          prod((1-q**(part_i)) for part_i in spart[1]) *
+                          P(spart)
+                          for spart in sparts]
+                return sum(p_list)
+            fermionics = [rho_ptilde(k, q, t, P) for k in ferm_list]
+            fermionic = reduce(operator.mul, fermionics, 1)
+            return fermionic*bosonic
+
         class Element(CombinatorialFreeModule.Element):
             """Class for methods of elements of basis."""
 
@@ -1206,6 +1236,15 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
                 return P._apply_multi_module_morphism(self, other_p,
                                                       P.z_lambda,
                                                       orthogonal=True)
+
+            def rho_qt(self):
+                """Return the rho_qt automorphism of self."""
+                spart_coeff = self.monomial_coefficients().items()
+                P = self.parent()
+                rho_spart = P._rho_qt_spart
+                lin_list = [coeff*rho_spart(spart)
+                            for spart, coeff in spart_coeff]
+                return sum(lin_list)
 
     p = Powersum
 
