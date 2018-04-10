@@ -834,6 +834,11 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
                 P = self.parent().realization_of().Powersum()
                 return self.parent(P(self).omega())
 
+            def phi_t(self):
+                """Apply the phi_t automoprhism."""
+                P = self.parent().realization_of().Powersum()
+                return self.parent(P(self).phi_t())
+
             def expand(self, superspace):
                 """Expand the expression in terms of variables."""
                 mono = self.parent().realization_of().Monomial()
@@ -1236,6 +1241,24 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
                 return P._apply_multi_module_morphism(self, other_p,
                                                       P.z_lambda,
                                                       orthogonal=True)
+
+            def phi_t(self):
+                """Apply the phi_t automorphism on powersums."""
+                def phi_spart(spart, t):
+                    coeff = [(1-t**r)**(-1) for r in spart[1]]
+                    coeff = reduce(operator.mul, coeff, 1)
+                    return coeff
+
+                t = self.base_ring().gens_dict()['t']
+                P = self.parent()
+
+                spart_coeff = self.monomial_coefficients()
+                spart_phicoeff = {
+                    spart: spart_coeff[spart]*phi_spart(spart, t)
+                    for spart in spart_coeff}
+                return P.linear_combination(
+                    ((P(spart), spart_phicoeff[spart])
+                     for spart in spart_phicoeff))
 
             def rho_qt(self):
                 """Return the rho_qt automorphism of self."""
