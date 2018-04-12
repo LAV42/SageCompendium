@@ -7,6 +7,7 @@ from sage.functions.other import factorial
 from sym_superfunct import unique_perm_list_elements
 from sage.misc.misc_c import prod
 from functools import reduce
+from sage.combinat.permutation import Permutation
 import operator
 singular.lib('nctools.lib')
 
@@ -193,7 +194,7 @@ class superspace:
         permutations = SN
         # We generate the permutations of the list of variables
         # Here we take permutations of length 1 since f is symmetric
-        # if f = K_ij f for all ij.
+        # iff f = K_ij f for all ij.
         permVars = [['dtheta'] + permutation(Theta) + permutation(X)
                     for permutation in permutations
                     if permutation.length() == 1]
