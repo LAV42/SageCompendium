@@ -141,6 +141,7 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
             inverse_on_support=lambda spart: spart.conjugate())
         self._m_to_e = ~(self._e_to_m)
 
+        # Coercion classical bases
         self._p_to_m.register_as_coercion()
         self._m_to_p.register_as_coercion()
         self._h_to_m.register_as_coercion()
@@ -175,13 +176,13 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
             self.morph_SchurBar_to_SchurStar,
             codomain=self._SchurStar, category=category)
 
+        # Coercion Schur
         self._Schur_to_m.register_as_coercion()
         self._m_to_Schur.register_as_coercion()
         self._SchurBar_to_m.register_as_coercion()
         self._m_to_SchurBar.register_as_coercion()
         self._SchurStar_to_SchurBar.register_as_coercion()
         self._SchurBarStar_to_Schur.register_as_coercion()
-        # REVISION
         self._Schur_to_SchurBarStar.register_as_coercion()
         self._SchurBar_to_SchurStar.register_as_coercion()
         try:
@@ -193,7 +194,7 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
 
         # One parameter bases
         if 'alpha' in some_ring.variable_names():
-            # Galpha
+            # Galpha basis
             self._Galpha = self.Galpha()
             self._galpha_to_p = self._Galpha.module_morphism(
                 self.morph_galpha_to_p, triangular='upper', invertible=True,
@@ -202,6 +203,7 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
 
             self._galpha_to_p.register_as_coercion()
             self._p_to_galpha.register_as_coercion()
+
             # Jack polynomials
             try:
                 self._Jack_m_cache = load('./super_cache/Jack_m')
@@ -245,6 +247,7 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
     @cached_method
     def morph_p_to_m(self, spart):
         """Take a spart and return the monomial expression of the powersum."""
+        # The method uses the algorithm for the product of monomials
         Sparts = _Superpartitions
         if spart == _Superpartitions([[], []]):
             return self._M(1)
@@ -319,7 +322,6 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
     def morph_galpha_to_p(self, spart):
         """Convert galpha_Lambda to powersums."""
         # See compendium The one parameter of the ...
-        # We should somehow make sure that the ring is OK.
         P = self._P
         if spart == _Superpartitions([[], []]):
             return P(1)
@@ -361,6 +363,8 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
 
     def morph_Jack_to_m(self, spart):
         """Return the monomial expansion of the Jack given spart."""
+        # Here if the Jack is already cached, we return it
+        # If not, we use the GramSchmidt procedure to obtain it
         if spart == _Superpartitions([[], []]):
             return self._M(1)
         sector = spart.sector()
@@ -383,6 +387,8 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
 
     def morph_Macdo_to_m(self, spart):
         """Return the monomial expansion of the Jack given spart."""
+        # Here if the Macdonald is already cached, we return it
+        # If not, we use the GramSchmidt procedure to obtain it
         if spart == _Superpartitions([[], []]):
             return self._M(1)
         sector = spart.sector()
@@ -438,6 +444,8 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
 
     def morph_Schur_to_m(self, spart):
         """Return the monomial expansion of the Schur given spart."""
+        # Obtain it from cache, if not cached obtain it as
+        # the limit of the Macdonald
         if spart == _Superpartitions([[], []]):
             return self._M(1)
         sector = spart.sector()
@@ -539,6 +547,9 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
         sbar_star = (-1)**(ferm_deg*(ferm_deg-1)/2)*omega_s
         return sbar_star
 
+    # Since the Sage morphism inversion only works on diagonal matrix
+    # of transition, we build the matrices and invert them
+    # This might be sub-optimal
     def TM_SchurBarStar_Schur(self, sector):
         """Return the transition matrix sBarStar to Schur."""
         Sparts = Superpartitions(*sector)
@@ -630,7 +641,8 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
         r"""
         This is copied from sage/combinat/sf, adapted for superpartitions.
         Apply Gram-Schmidt to ``source`` with respect to the scalar product
-        ``scalar`` for all partitions of `n`. The scalar product is supposed
+        ``scalar`` for all superpartitions of `n|M`. The scalar product is
+        supposed
         to make the power-sum basis orthogonal. The Gram-Schmidt algorithm
         computes an orthogonal basis (with respect to the scalar product
         given by ``scalar``) of the `n`-th homogeneous component of the
@@ -645,6 +657,7 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
 
         - ``n`` -- nonnegative integer which specifies the size of
           the partitions
+        - ``m`` -- nonnegative integer which specifies the fermionic degree
         - ``source`` -- a basis of the ring of symmetric functions
         - ``scalar`` -- a function ``zee`` from partitions to the base ring
           which specifies the scalar product by `\langle p_{\lambda},
@@ -803,6 +816,7 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
                 return term1*term2*cls.z_lambda(spart)
 
             def from_polynomial(self, expr, superspace):
+                """Obtain the basis representation of a superpolynomial."""
                 mono = self.realization_of().Monomial()
                 return self(mono._pol_to_mono(expr, superspace))
 
@@ -831,6 +845,9 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
                 # element -> powersum_expr
                 # omega(powersum_expr)
                 # omega(powersum_expr) -> element
+
+                # One could overide this method in the element class
+                # for faster implementation.
                 P = self.parent().realization_of().Powersum()
                 return self.parent(P(self).omega())
 
@@ -1008,20 +1025,15 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
             # L. Alarie-Vezina, L. Lapointe and P. Mathieu.
             # N >= 2 symmetric superpolynomials.
             # The algorithm is given in Appendix B Monomial Product Algorithm
+            # Algorithm step 1-3: add zeros so that the length are equal
+            # And add letters in boxes and circles
             alt_a = left.switch_notation('a', len(right))
             alt_b = right.switch_notation('b', len(left))
 
+            # Algorithm step 4: Permute entries of spartb and add it to 
+            # sparta
             permutation_b = unique_perm_list_elements(alt_b)
 
-            # and add thos resulting list to those of spart_a
-            # seen = [[]]
-            # sums_a_b = []
-            # for a_perm in permutation_b:
-            #     if a_perm in seen:
-            #         pass
-            #     else:
-            #         seen += a_perm
-            #         sums_a_b += monomial.add_altnota_sparts(alt_a, a_perm)
             sums_a_b = [
                 self.add_altnota_sparts(alt_a, x)
                 for x in permutation_b
@@ -1045,6 +1057,7 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
         @staticmethod
         def add_altnota_sparts(alt_sparta, alt_spartb):
             """Element wise adding of two alt notated sparts."""
+            # This is meant only for the monomial product algorithm
             length = len(alt_sparta)
             out = []
             for k in range(length):
@@ -1327,8 +1340,6 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
                 alpha = QQa.gen()
             else:
                 alpha = param
-            # TODO depending on the convetion for the scalar
-            # product, might have to modify
             ferm_degree = spart.fermionic_degree()
             alpha_factor = alpha**ferm_degree
             coords = spart.bosonic_cells()
@@ -1449,6 +1460,7 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
                 return reduce(operator.mul, terms, 1)
 
             def hlo_Lambda(self, q, t, spart):
+                """Return the qt lower hook associeted to spart."""
                 bosonic_cells = spart.bosonic_cells()
                 star = spart.star()
                 cstar = spart.circle_star()
@@ -1459,12 +1471,13 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
                 return reduce(operator.mul, terms, 1)
 
             def specialize(self, N, P_norm=True):
+                """Specialize the sMacdo."""
                 BR = self.base_ring()
                 params = BR.gens_dict()
                 q = params['q']
                 t = params['t']
-                #wqt = self.wqt_Lambda
                 wqt = self.hlo_Lambda
+                # This pretty much goes as is illustrated in the compendium
 
                 def _eval_spart(spart, wqt, N, q, t):
                     ferm_deg = spart.fermionic_degree()
@@ -1476,7 +1489,6 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
                     exp_denom = (
                         (ferm_deg - 1)*(spart[0].degree() - stair.degree()) -
                         (spart[0].b() - stair.b()))
-                    #normp = wqt(t, q, spart.conjugate())
                     normp = wqt(q, t, spart)
 
                     term1 = (t**(zetaL) * t**(bSL)) / (q**(exp_denom))
@@ -1502,6 +1514,7 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
                 return reduce(operator.add, terms)
 
 
+# Deprecating
 def normalize_coefficients(self, c):
     """Normalize. Helper functions, deprecating."""
     r"""
@@ -1533,7 +1546,6 @@ def normalize_coefficients(self, c):
         sage: JP._normalize_coefficients(a)
         6/(t^2 + 3*t + 2)
     """
-    BR = self.base_ring()
     if True:
         denom = c.denominator()
         numer = c.numerator()
