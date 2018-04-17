@@ -30,6 +30,7 @@ from sage.arith.all import gcd, lcm
 from sage.structure.sage_object import load, save
 from sage.matrix.constructor import Matrix
 from sage.interfaces.singular import singular
+from sage.sets.set import Set
 
 
 def unique_permutations(seq):
@@ -1167,6 +1168,95 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
             """Initialize the combinatorial module."""
             SymSuperfunctionsAlgebra.Basis.__init__(
                 self, A, prefix='s')
+
+        def spart_row_mult(self, spart, row, ferm=0):
+            bos_deg = spart.bosonic_degree() + row
+            ferm_deg = spart.fermionic_degree() + ferm
+            sparts = Superpartitions(bos_deg, ferm_deg)
+
+            valid_sparts = [Omega
+                            for Omega in sparts
+                            if self.is_RMI(Omega, spart, ferm)]
+            return valid_sparts
+
+        @staticmethod
+        def is_RMI(Om, other, ferm=True):
+            self = Om
+            print('considering', self)
+            Omega = Om
+            Lambda = other
+
+            # (dot)
+            # Omega^*/Lambda* is r-strip
+            OmCells = Set(Omega.cells())
+            LamCells = Set(Lambda.cells())
+            skew_star = OmCells.difference(LamCells)
+            print('skew_star', skew_star)
+            # We now check if two boxes are on top of each other
+            # if so, it is not a strip
+            j_coord = [x[1] for x in skew_star]
+            if len(j_coord) != len(set(j_coord)):
+                print(j_coord)
+                print(self, 'not r-strip')
+                return False
+
+            # (dot)
+            # Omega/Lambda, the new circle is in the rightmost position
+            OmAllCells = Set(Omega.all_cells())
+            LamAllCells = Set(Lambda.all_cells())
+            OmCircles = OmAllCells.difference(OmCells)
+            LamCircles = LamAllCells.difference(LamCells)
+            valid_OmCircles = list(OmCircles)
+            if ferm:
+                skew_circ_star = OmAllCells.difference(LamAllCells)
+                rightmost_elem = max(skew_circ_star, key=lambda x: x[1])
+                if rightmost_elem not in OmCircles:
+                    print(self, 'not rightmost')
+                    return False
+                j_coord = [x[1] for x in skew_circ_star]
+                if len(j_coord) != len(set(j_coord)):
+                    print(self, 'not r+1-strip')
+                    return False
+                else:
+                    valid_OmCircles.remove(rightmost_elem)
+            # Now We make sure that we can map every circle of Lambda
+            # to a circle of Omega according to the rules.
+            for circ in LamCircles:
+                # If the circle is in its original position
+                # all is fine
+                if circ in valid_OmCircles:
+                    valid_OmCircles.remove(circ)
+                else:
+                    Om_i_coords = [x[0] for x in valid_OmCircles]
+                    # (i) If the circle is in the first row, it can be moved
+                    # horizontally without restrictions
+                    if circ[0] == 1 and 1 in Om_i_coords:
+                        the_circ = valid_OmCircles[Om_i_coords.index(1)]
+                        if the_circ < circ:
+                            print(self, 'circle too far left')
+                            return False
+                        else:
+                            valid_OmCircles.remove(the_circ)
+                    # (ii) If the circle is in its original row
+                    elif circ[0] in Om_i_coords:
+                        # it can be moved to the right as long as there is
+                        # a box in the original diagram (Lambda) over the circle
+                        if circ[1] > Lambda.star()[circ[0]-2]:
+                            print(self, 'circle too far right')
+                            return False
+                        else:
+                            the_circ = valid_OmCircles[Om_i_coords.index(circ[0])]
+                            valid_OmCircles.remove(the_circ)
+                    elif (circ[0] + 1, circ[1]) in valid_OmCircles:
+                        valid_OmCircles.remove((circ[0]+1, circ[1]))
+                    else:
+                        print(self, 'the circle matched no condition')
+                        return False
+            return True
+
+            @staticmethod
+            def spart_column_mult(spart, r):
+                pass
 
     class SchurBar(Basis):
         """Class of the type II super Schur."""
