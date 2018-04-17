@@ -1279,6 +1279,17 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
                     for spart, coeff in spart_coeff.iteritems()]
                 return sum(new_exprs)
 
+            def _h_rmul(self, n):
+                """Right multiply a schur expression by p[[n],[]]."""
+                S = self.parent()
+                spart_coeff = self.monomial_coefficients()
+                new_exprs = [
+                    coeff *
+                    S.linear_from_dict(
+                        S.spart_row_mult(spart, n, ferm=0))
+                    for spart, coeff in spart_coeff.iteritems()]
+                return sum(new_exprs)
+
 
     class SchurBar(Basis):
         """Class of the type II super Schur."""
