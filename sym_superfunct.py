@@ -996,6 +996,12 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
             """Identity element."""
             return _Superpartitions([[], []])
 
+        def linear_from_dict(self, dic):
+            """Return a linear combination of elements of basis given dict."""
+            coef_elem = ((self(spart), coeff)
+                         for spart, coeff in dic.iteritems())
+            return self.linear_combination(coef_elem)
+
     class Monomial(Basis):
         """Class of the monomial basis."""
 
@@ -1258,6 +1264,21 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
             @staticmethod
             def spart_column_mult(spart, r):
                 pass
+
+        class Element(CombinatorialFreeModule.Element):
+            """Schur element class."""
+
+            def _ptilde_rmul(self, n):
+                """Right multiply a schur expression by p[[n],[]]."""
+                S = self.parent()
+                spart_coeff = self.monomial_coefficients()
+                new_exprs = [
+                    coeff *
+                    S.linear_from_dict(
+                        S.spart_row_mult(spart, n, ferm=1))
+                    for spart, coeff in spart_coeff.iteritems()]
+                return sum(new_exprs)
+
 
     class SchurBar(Basis):
         """Class of the type II super Schur."""
