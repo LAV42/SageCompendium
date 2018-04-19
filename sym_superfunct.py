@@ -1377,6 +1377,89 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
             SymSuperfunctionsAlgebra.Basis.__init__(
                 self, A, prefix='sStar')
 
+        def spart_row_mult(self, spart, row, ferm=0):
+            bos_deg = spart.bosonic_degree() + row
+            ferm_deg = spart.fermionic_degree() + ferm
+            sparts = Superpartitions(bos_deg, ferm_deg)
+
+            valid_sparts = [self.is_RMII(Omega, spart, ferm)
+                            for Omega in sparts]
+            valid_sparts = [x for x in valid_sparts
+                            if x is not None]
+            out_dict = {omega: coeff for coeff, omega in valid_sparts}
+            return out_dict
+
+        @staticmethod
+        def is_RMII(Omega, Lambda, ferm=True):
+            if Omega == _Superpartitions([[2,1],[6,1]]):
+                Omega.terminal_diagram()
+                Lambda.terminal_diagram()
+            # First r-strip condition:
+            OmCells = Set(Omega.cells())
+            LamCells = Set(Lambda.cells())
+            if not LamCells.issubset(OmCells):
+                print('not subs')
+                return None
+            skew_star = OmCells.difference(LamCells)
+            # We now check if two boxes are on top of each other
+            # if so, it is not a strip
+            j_coord = [x[1] for x in skew_star]
+            j_coord.sort()
+            if len(j_coord) != len(set(j_coord)):
+                print('box over')
+                return None
+
+            # (dot) i-th circle
+            OmAllCells = Set(Omega.all_cells())
+            LamAllCells = Set(Lambda.all_cells())
+            OmCircles = OmAllCells.difference(OmCells)
+            LamCircles = list(LamAllCells.difference(LamCells))
+            LamCircles.sort(reverse=True)
+            valid_OmCircles = list(OmCircles)
+            OmCircles_i = [x[0] for x in valid_OmCircles]
+            i_coord = [x[0] for x in skew_star]
+            # There must be a one to one maping between
+            # circles of Lambda to circles of Omega
+            for circ in LamCircles:
+                ith = circ[0]
+                if ith not in i_coord and ith in OmCircles_i:
+                    valid_OmCircles.remove(circ)
+                elif ith in i_coord and ith+1 in OmCircles_i:
+                    the_circ = [x for x in valid_OmCircles
+                                if x[0] == ith+1][0]
+                    print(the_circ)
+                    valid_OmCircles.remove(the_circ)
+                else:
+                    print('one-to-one circle')
+                    return None
+                OmCircles_i = [x[0] for x in valid_OmCircles]
+            # There should be one OmCircle left if we added a fermionic
+            # column
+            if ferm and len(valid_OmCircles) == 1:
+                added_circ = valid_OmCircles[0]
+                # No new box can lie over the added circle
+                if added_circ[1] in j_coord:
+                    return None
+                # There must be a new box in every column on the left
+                # of the new circle
+                print(added_circ)
+                print(j_coord[:added_circ[1]-1])
+                print(range(added_circ[1]-1, 0, -1))
+                if j_coord[:added_circ[1]-1] != range(1, added_circ[1]):
+                    print('not a box in every column on the left')
+                    return None
+                # we count the number of cirle below
+                print(added_circ)
+                print(OmCircles)
+                circ_below = [1 for x in OmCircles
+                              if x[0] > added_circ[0]]
+                print(circ_below)
+                sign = (-1)**sum(circ_below)
+            else:
+                sign = 1
+
+            return [sign, Omega]
+
     class SchurBarStar(Basis):
         """Class of the type II dual super Schur."""
 
