@@ -157,49 +157,62 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
         self._m_to_e.register_as_coercion()
 
         # Schur Basis
-        self._Schur_to_m = self._Schur.module_morphism(
-            self.morph_Schur_to_m, triangular='upper', invertible=True,
-            codomain=self._M, category=category)
-        self._m_to_Schur = ~(self._Schur_to_m)
+        # self._Schur_to_m = self._Schur.module_morphism(
+        #     self.morph_Schur_to_m, triangular='upper', invertible=True,
+        #     codomain=self._M, category=category)
+        # self._m_to_Schur = ~(self._Schur_to_m)
 
-        self._SchurBar_to_m = self._SchurBar.module_morphism(
-            self.morph_SchurBar_to_m, triangular='upper', invertible=True,
-            codomain=self._M, category=category)
-        self._m_to_SchurBar = ~(self._SchurBar_to_m)
+        # self._SchurBar_to_m = self._SchurBar.module_morphism(
+        #     self.morph_SchurBar_to_m, triangular='upper', invertible=True,
+        #     codomain=self._M, category=category)
+        # self._m_to_SchurBar = ~(self._SchurBar_to_m)
+
+        self._SchurBar_to_SchurStar = self._SchurBar.module_morphism(
+            self.morph_SchurBar_to_SchurStar,
+            codomain=self._SchurStar, category=category)
 
         self._SchurStar_to_SchurBar = self._SchurStar.module_morphism(
             self.morph_SchurStar_to_SchurBar,
             codomain=self._SchurBar, category=category)
 
+        self._Schur_to_SchurBarStar = self._Schur.module_morphism(
+            self.morph_Schur_to_SchurBarStar,
+            codomain=self._SchurBarStar, category=category)
+
         self._SchurBarStar_to_Schur = self._SchurBarStar.module_morphism(
             self.morph_SchurBarStar_to_Schur,
             codomain=self._Schur, category=category)
 
-        self._Schur_to_SchurBarStar = self._Schur.module_morphism(
-            self.morph_Schur_to_SchurBarStar,
-            codomain=self._SchurBarStar, category=category)
-        self._SchurBar_to_SchurStar = self._SchurBar.module_morphism(
-            self.morph_SchurBar_to_SchurStar,
-            codomain=self._SchurStar, category=category)
-
+        # With Pieri
         self._p_to_Schur = self._P.module_morphism(
             self.morph_p_to_Schur,
             codomain=self._Schur, category=category)
         self._Schur_to_p = self._Schur.module_morphism(
             self.morph_Schur_to_p,
             codomain=self._P, category=category)
+        self._p_to_SchurStar = self._P.module_morphism(
+            self.morph_p_to_SchurStar,
+            codomain=self._SchurStar, category=category)
+        self._SchurStar_to_p = self._SchurStar.module_morphism(
+            self.morph_SchurStar_to_p,
+            codomain=self._P, category=category)
 
         # Coercion Schur
         # self._Schur_to_m.register_as_coercion()
         # self._m_to_Schur.register_as_coercion()
+        # Now coercion from Pieri rules
         self._Schur_to_p.register_as_coercion()
         self._p_to_Schur.register_as_coercion()
-        self._SchurBar_to_m.register_as_coercion()
-        self._m_to_SchurBar.register_as_coercion()
+        # self._SchurBar_to_m.register_as_coercion()
+        # self._m_to_SchurBar.register_as_coercion()
+        self._SchurStar_to_p.register_as_coercion()
+        self._p_to_SchurStar.register_as_coercion()
+
+        self._SchurBar_to_SchurStar.register_as_coercion()
         self._SchurStar_to_SchurBar.register_as_coercion()
+
         self._SchurBarStar_to_Schur.register_as_coercion()
         self._Schur_to_SchurBarStar.register_as_coercion()
-        self._SchurBar_to_SchurStar.register_as_coercion()
         try:
             self._Schur_m_cache = load('./super_cache/Schur_m')
             self._SchurBar_m_cache = load('./super_cache/SchurBar_m')
@@ -457,6 +470,7 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
 
         return coeff_lim
 
+    # Schur and p
     def morph_p_to_Schur(self, spart):
         """Return the Schur expansion of p[spart]."""
         S = self._Schur
@@ -480,6 +494,29 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
 
         return sSchur_expr
 
+    def morph_p_to_SchurStar(self, spart):
+        """Return the Schur expansion of p[spart]."""
+        SStar = self._SchurStar
+        stdS = self._stdSchur
+        stdP = self._stdP
+        # The idea here is that p_\Lambda = p_\Lambda^a * p_\Lambda^s
+        # and p_Lambda^s can be converted to standard Schur function
+        # using standard Sage Libraries
+        ptildes = list(spart[0])
+
+        # The symmetric part is dealt with built in Schur functions
+        psym = Partition(list(spart[1]))
+        schur_dict = stdS(stdP(psym)).monomial_coefficients().items()
+        # Convert to SuperSchur
+        schur_dict = {_Superpartitions([[], list(part)]): coeff
+                      for part, coeff in schur_dict}
+        sSchur_expr = SStar.linear_from_dict(schur_dict)
+        # Now we use Pieri for the fermionic part
+        for row in ptildes:
+            sSchur_expr = sSchur_expr._htilde_rmul(row)
+
+        return sSchur_expr
+
     def morph_Schur_to_p(self, spart):
         """Return the powesum expansion of a Schur polynomial."""
         p = self._P
@@ -493,8 +530,68 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
             for sp_index in range(len(sparts))]
         return p.linear_combination(p_coeff)
 
+    def morph_SchurStar_to_p(self, spart):
+        """Return the powesum expansion of a Schur polynomial."""
+        p = self._P
+        sector = spart.sector()
+        sparts = list(Superpartitions(*sector))
+        spart_index = sparts.index(spart)
+        TM = self.TM_SchurStar_to_p(sector)
+        sp_line = TM[spart_index]
+        p_coeff = [
+            (p(sparts[sp_index]), sp_line[sp_index])
+            for sp_index in range(len(sparts))]
+        return p.linear_combination(p_coeff)
+
+    # Schur to Schur
+    def morph_SchurBar_to_SchurStar(self, spart):
+        """Return the s* expansion of the sbar given a spart."""
+        sstar_lambdaprime = self._SchurStar(spart.conjugate())
+        omega_sstar = sstar_lambdaprime.omega()
+        ferm_deg = spart.fermionic_degree()
+        s_bar = (-1)**(ferm_deg*(ferm_deg-1)/2)*omega_sstar
+        return s_bar
+
+    def morph_SchurStar_to_SchurBar(self, spart):
+        """Return the sbar expansion of the s* given a spart."""
+        sbar = self._SchurBar
+        sector = spart.sector()
+        sparts = list(Superpartitions(*sector))
+        spart_index = sparts.index(spart)
+        TM = self.TM_SchurStar_to_SchurBar(sector)
+        sp_line = TM[spart_index]
+        p_coeff = [
+            (sbar(sparts[sp_index]), sp_line[sp_index])
+            for sp_index in range(len(sparts))]
+        return sbar.linear_combination(p_coeff)
+
+    def morph_SchurBarStar_to_Schur(self, spart):
+        """Return the monomial expansion of the dual Schur given a spart."""
+        s_lambdaprime = self._Schur(spart.conjugate())
+        omega_s = s_lambdaprime.omega()
+        ferm_deg = spart.fermionic_degree()
+        sbar_star = (-1)**(ferm_deg*(ferm_deg-1)/2)*omega_s
+        return sbar_star
+
+    def morph_Schur_to_SchurBarStar(self, spart):
+        """Return the dualr Schurbar of the Schur given a spart."""
+        sbarstar = self._SchurStar
+        sparts = list(Superpartitions(*spart.sector()))
+        spart_index = sparts.index(spart)
+        TM = self.TM_Schur_to_SchurBarStar(spart.sector())
+        sp_line = TM[spart_index]
+        s_coeff = [
+            (sbarstar(sparts[sp_index]), sp_line[sp_index])
+            for sp_index in range(len(sparts))
+        ]
+        return sbarstar.linear_combination(s_coeff)
+
+    # Since the Sage morphism inversion only works on diagonal matrix
+    # of transition, we build the matrices and invert them
+    # This might be sub-optimal
     @cached_method
     def TM_p_to_Schur(self, sector):
+        """Return the transition matrix p -> s."""
         sparts = Superpartitions(*sector)
         exprs = [self.morph_p_to_Schur(spart) for spart in sparts]
         TM = [
@@ -505,8 +602,67 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
 
     @cached_method
     def TM_Schur_to_p(self, sector):
+        """Return the transition matrix s -> p."""
         TMps = self.TM_p_to_Schur(sector)
         TM = TMps.inverse()
+        return TM
+
+    @cached_method
+    def TM_p_to_SchurStar(self, sector):
+        """Return the transition matrix p -> s*."""
+        sparts = Superpartitions(*sector)
+        exprs = [self.morph_p_to_SchurStar(spart) for spart in sparts]
+        TM = [
+            [expr.coefficient(spart) for spart in sparts]
+            for expr in exprs]
+        TM = Matrix(QQ, TM)
+        return TM
+
+    @cached_method
+    def TM_SchurStar_to_p(self, sector):
+        """Return the transition matrix s* -> p."""
+        TMps = self.TM_p_to_SchurStar(sector)
+        TM = TMps.inverse()
+        return TM
+
+    @cached_method
+    def TM_SchurBarStar_to_Schur(self, sector):
+        """Return the transition matrix sBarStar to Schur."""
+        Sparts = Superpartitions(*sector)
+        target = self._Schur
+        origin = self._SchurBarStar
+        expr = [target(origin(spart)) for spart in Sparts]
+        TM = [
+            [one_expr.coefficient(spart) for spart in Sparts]
+            for one_expr in expr]
+        TM = Matrix(TM)
+        return TM
+
+    @cached_method
+    def TM_Schur_to_SchurBarStar(self, sector):
+        """Return the transition matrix Schur to SchurBarStar."""
+        TM = self.TM_SchurBarStar_to_Schur(sector)
+        TM = TM.inverse()
+        return TM
+
+    @cached_method
+    def TM_SchurBar_to_SchurStar(self, sector):
+        """Return the transition matrix SchurStar to SchurBar."""
+        Sparts = Superpartitions(*sector)
+        target = self._SchurStar
+        origin = self._SchurBar
+        expr = [target(origin(spart)) for spart in Sparts]
+        TM = [
+            [one_expr.coefficient(spart) for spart in Sparts]
+            for one_expr in expr]
+        TM = Matrix(QQ, TM)
+        return TM
+
+    @cached_method
+    def TM_SchurStar_to_SchurBar(self, sector):
+        """Return the transition matrix SchurStar to SchurBar."""
+        TM_sb_ss = self.TM_SchurBar_to_SchurStar(sector)
+        TM = TM_sb_ss.inverse()
         return TM
 
     def morph_Schur_to_m(self, spart):
@@ -597,92 +753,6 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
                       for a_spart, coeff in spart_coeff)
         out = M.linear_combination(mono_coeff)
         return out
-
-    def morph_SchurStar_to_SchurBar(self, spart):
-        """Return the monomial expansion of the dual Schur given a spart."""
-        sbar_lambdaprime = self._SchurBar(spart.conjugate())
-        omega_sbar = sbar_lambdaprime.omega()
-        ferm_deg = spart.fermionic_degree()
-        s_star = (-1)**(ferm_deg*(ferm_deg-1)/2)*omega_sbar
-        return s_star
-
-    def morph_SchurBarStar_to_Schur(self, spart):
-        """Return the monomial expansion of the dual Schur given a spart."""
-        s_lambdaprime = self._Schur(spart.conjugate())
-        omega_s = s_lambdaprime.omega()
-        ferm_deg = spart.fermionic_degree()
-        sbar_star = (-1)**(ferm_deg*(ferm_deg-1)/2)*omega_s
-        return sbar_star
-
-    # Since the Sage morphism inversion only works on diagonal matrix
-    # of transition, we build the matrices and invert them
-    # This might be sub-optimal
-    @cached_method
-    def TM_SchurBarStar_Schur(self, sector):
-        """Return the transition matrix sBarStar to Schur."""
-        Sparts = Superpartitions(*sector)
-        target = self._Schur
-        origin = self._SchurBarStar
-        expr = [target(origin(spart)) for spart in Sparts]
-        TM = [
-            [one_expr.coefficient(spart) for spart in Sparts]
-            for one_expr in expr]
-        TM = Matrix(TM)
-        return TM
-
-    @cached_method
-    def TM_Schur_SchurBarStar(self, sector):
-        """Return the transition matrix Schur to SchurBarStar."""
-        TM = self.TM_SchurBarStar_Schur(sector)
-        TM = TM.inverse()
-        return TM
-
-    def TM_SchurStar_SchurBar(self, sector):
-        """Return the transition matrix SchurStar to SchurBar."""
-        Sparts = Superpartitions(*sector)
-        target = self._SchurBar
-        origin = self._SchurStar
-        expr = [target(origin(spart)) for spart in Sparts]
-        TM = [
-            [one_expr.coefficient(spart) for spart in Sparts]
-            for one_expr in expr]
-        TM = Matrix(TM)
-        return TM
-
-    @cached_method
-    def TM_SchurBar_SchurStar(self, sector):
-        """Return the transition matrix SchurBar to SchurStar."""
-        TM = self.TM_SchurStar_SchurBar(sector)
-        TM = TM.inverse()
-        return TM
-
-    @cached_method
-    def morph_SchurBar_to_SchurStar(self, spart):
-        """Return the Schur dual expansion of SchurBar given a spart."""
-        sstar = self._SchurStar
-        sparts = list(Superpartitions(*spart.sector()))
-        spart_index = sparts.index(spart)
-        TM = self.TM_SchurBar_SchurStar(spart.sector())
-        sp_line = TM[spart_index]
-        s_coeff = [
-            (sstar(sparts[sp_index]), sp_line[sp_index])
-            for sp_index in range(len(sparts))
-        ]
-        return sstar.linear_combination(s_coeff)
-
-    @cached_method
-    def morph_Schur_to_SchurBarStar(self, spart):
-        """Return the dualr Schurbar of the Schur given a spart."""
-        sbarstar = self._SchurStar
-        sparts = list(Superpartitions(*spart.sector()))
-        spart_index = sparts.index(spart)
-        TM = self.TM_Schur_SchurBarStar(spart.sector())
-        sp_line = TM[spart_index]
-        s_coeff = [
-            (sbarstar(sparts[sp_index]), sp_line[sp_index])
-            for sp_index in range(len(sparts))
-        ]
-        return sbarstar.linear_combination(s_coeff)
 
     def _update_cache(self, sector, cache_extension, which_cache=None):
         """Update and write to disk the cache of an object."""
@@ -1391,14 +1461,10 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
 
         @staticmethod
         def is_RMII(Omega, Lambda, ferm=True):
-            if Omega == _Superpartitions([[2,1],[6,1]]):
-                Omega.terminal_diagram()
-                Lambda.terminal_diagram()
             # First r-strip condition:
             OmCells = Set(Omega.cells())
             LamCells = Set(Lambda.cells())
             if not LamCells.issubset(OmCells):
-                print('not subs')
                 return None
             skew_star = OmCells.difference(LamCells)
             # We now check if two boxes are on top of each other
@@ -1406,7 +1472,6 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
             j_coord = [x[1] for x in skew_star]
             j_coord.sort()
             if len(j_coord) != len(set(j_coord)):
-                print('box over')
                 return None
 
             # (dot) i-th circle
@@ -1427,10 +1492,8 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
                 elif ith in i_coord and ith+1 in OmCircles_i:
                     the_circ = [x for x in valid_OmCircles
                                 if x[0] == ith+1][0]
-                    print(the_circ)
                     valid_OmCircles.remove(the_circ)
                 else:
-                    print('one-to-one circle')
                     return None
                 OmCircles_i = [x[0] for x in valid_OmCircles]
             # There should be one OmCircle left if we added a fermionic
@@ -1442,23 +1505,30 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
                     return None
                 # There must be a new box in every column on the left
                 # of the new circle
-                print(added_circ)
-                print(j_coord[:added_circ[1]-1])
-                print(range(added_circ[1]-1, 0, -1))
                 if j_coord[:added_circ[1]-1] != range(1, added_circ[1]):
-                    print('not a box in every column on the left')
                     return None
                 # we count the number of cirle below
-                print(added_circ)
-                print(OmCircles)
                 circ_below = [1 for x in OmCircles
                               if x[0] > added_circ[0]]
-                print(circ_below)
                 sign = (-1)**sum(circ_below)
             else:
                 sign = 1
 
             return [sign, Omega]
+
+        class Element(CombinatorialFreeModule.Element):
+            """SchurStar element class."""
+
+            def _htilde_rmul(self, n):
+                """Right multiply a SchurStar expression by h[[n],[]]."""
+                SStar = self.parent()
+                spart_coeff = self.monomial_coefficients()
+                new_exprs = [
+                    coeff *
+                    SStar.linear_from_dict(
+                        SStar.spart_row_mult(spart, n, ferm=1))
+                    for spart, coeff in spart_coeff.iteritems()]
+                return sum(new_exprs)
 
     class SchurBarStar(Basis):
         """Class of the type II dual super Schur."""
