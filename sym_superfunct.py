@@ -31,6 +31,8 @@ from sage.structure.sage_object import load, save
 from sage.matrix.constructor import Matrix
 from sage.interfaces.singular import singular
 from sage.sets.set import Set
+from sage.combinat.partition import Partition
+from sage.combinat.sf.sf import SymmetricFunctions
 
 
 def unique_permutations(seq):
@@ -119,6 +121,9 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
         self._SchurBar = self.SchurBar()
         self._SchurStar = self.SchurStar()
         self._SchurBarStar = self.SchurBarStar()
+        self._SFQQ = SymmetricFunctions(QQ)
+        self._stdSchur = self._SFQQ.schur()
+        self._stdP = self._SFQQ.powersum()
         category = self.Bases()
 
         # These implementation are a bit slow.
@@ -177,9 +182,18 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
             self.morph_SchurBar_to_SchurStar,
             codomain=self._SchurStar, category=category)
 
+        self._p_to_Schur = self._P.module_morphism(
+            self.morph_p_to_Schur,
+            codomain=self._Schur, category=category)
+        self._Schur_to_p = self._Schur.module_morphism(
+            self.morph_Schur_to_p,
+            codomain=self._P, category=category)
+
         # Coercion Schur
-        self._Schur_to_m.register_as_coercion()
-        self._m_to_Schur.register_as_coercion()
+        # self._Schur_to_m.register_as_coercion()
+        # self._m_to_Schur.register_as_coercion()
+        self._Schur_to_p.register_as_coercion()
+        self._p_to_Schur.register_as_coercion()
         self._SchurBar_to_m.register_as_coercion()
         self._m_to_SchurBar.register_as_coercion()
         self._SchurStar_to_SchurBar.register_as_coercion()
@@ -443,6 +457,58 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
 
         return coeff_lim
 
+    def morph_p_to_Schur(self, spart):
+        """Return the Schur expansion of p[spart]."""
+        S = self._Schur
+        stdS = self._stdSchur
+        stdP = self._stdP
+        # The idea here is that p_\Lambda = p_\Lambda^a * p_\Lambda^s
+        # and p_Lambda^s can be converted to standard Schur function
+        # using standard Sage Libraries
+        ptildes = list(spart[0])
+
+        # The symmetric part is dealt with built in Schur functions
+        psym = Partition(list(spart[1]))
+        schur_dict = stdS(stdP(psym)).monomial_coefficients().items()
+        # Convert to SuperSchur
+        schur_dict = {_Superpartitions([[], list(part)]): coeff
+                      for part, coeff in schur_dict}
+        sSchur_expr = S.linear_from_dict(schur_dict)
+        # Now we use Pieri for the fermionic part
+        for row in ptildes:
+            sSchur_expr = sSchur_expr._ptilde_rmul(row)
+
+        return sSchur_expr
+
+    def morph_Schur_to_p(self, spart):
+        """Return the powesum expansion of a Schur polynomial."""
+        p = self._P
+        sector = spart.sector()
+        sparts = list(Superpartitions(*sector))
+        spart_index = sparts.index(spart)
+        TM = self.TM_Schur_to_p(sector)
+        sp_line = TM[spart_index]
+        p_coeff = [
+            (p(sparts[sp_index]), sp_line[sp_index])
+            for sp_index in range(len(sparts))]
+        return p.linear_combination(p_coeff)
+
+    @cached_method
+    def TM_p_to_Schur(self, sector):
+        sparts = Superpartitions(*sector)
+        exprs = [self.morph_p_to_Schur(spart) for spart in sparts]
+        TM = [
+            [expr.coefficient(spart) for spart in sparts]
+            for expr in exprs]
+        TM = Matrix(QQ, TM)
+        return TM
+
+    @cached_method
+    def TM_Schur_to_p(self, sector):
+        TMps = self.TM_p_to_Schur(sector)
+        TM = TMps.inverse()
+        return TM
+
     def morph_Schur_to_m(self, spart):
         """Return the monomial expansion of the Schur given spart."""
         # Obtain it from cache, if not cached obtain it as
@@ -551,6 +617,7 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
     # Since the Sage morphism inversion only works on diagonal matrix
     # of transition, we build the matrices and invert them
     # This might be sub-optimal
+    @cached_method
     def TM_SchurBarStar_Schur(self, sector):
         """Return the transition matrix sBarStar to Schur."""
         Sparts = Superpartitions(*sector)
@@ -563,6 +630,7 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
         TM = Matrix(TM)
         return TM
 
+    @cached_method
     def TM_Schur_SchurBarStar(self, sector):
         """Return the transition matrix Schur to SchurBarStar."""
         TM = self.TM_SchurBarStar_Schur(sector)
@@ -581,12 +649,14 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
         TM = Matrix(TM)
         return TM
 
+    @cached_method
     def TM_SchurBar_SchurStar(self, sector):
         """Return the transition matrix SchurBar to SchurStar."""
         TM = self.TM_SchurStar_SchurBar(sector)
         TM = TM.inverse()
         return TM
 
+    @cached_method
     def morph_SchurBar_to_SchurStar(self, spart):
         """Return the Schur dual expansion of SchurBar given a spart."""
         sstar = self._SchurStar
@@ -600,6 +670,7 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
         ]
         return sstar.linear_combination(s_coeff)
 
+    @cached_method
     def morph_Schur_to_SchurBarStar(self, spart):
         """Return the dualr Schurbar of the Schur given a spart."""
         sbarstar = self._SchurStar
@@ -1280,7 +1351,7 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
                 return sum(new_exprs)
 
             def _h_rmul(self, n):
-                """Right multiply a schur expression by p[[n],[]]."""
+                """Right multiply a schur expression by h[[],[n]]."""
                 S = self.parent()
                 spart_coeff = self.monomial_coefficients()
                 new_exprs = [
@@ -1289,7 +1360,6 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
                         S.spart_row_mult(spart, n, ferm=0))
                     for spart, coeff in spart_coeff.iteritems()]
                 return sum(new_exprs)
-
 
     class SchurBar(Basis):
         """Class of the type II super Schur."""
