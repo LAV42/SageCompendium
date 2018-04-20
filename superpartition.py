@@ -84,6 +84,8 @@ class BosonicPartition(ClonableArray):
     def conjugate(self):
         """Return the conjugate partition."""
         parts = list(self)
+        if parts == []:
+            return self
         # Destroy the diagram column by column, adding each column
         # to the new partition
         eat_diagram = [
