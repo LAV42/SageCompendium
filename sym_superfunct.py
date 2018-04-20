@@ -124,6 +124,7 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
         self._SFQQ = SymmetricFunctions(QQ)
         self._stdSchur = self._SFQQ.schur()
         self._stdP = self._SFQQ.powersum()
+        self._stdH = self._SFQQ.homogeneous()
         category = self.Bases()
 
         # These implementation are a bit slow.
@@ -190,12 +191,12 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
         self._Schur_to_p = self._Schur.module_morphism(
             self.morph_Schur_to_p,
             codomain=self._P, category=category)
-        self._p_to_SchurStar = self._P.module_morphism(
-            self.morph_p_to_SchurStar,
+        self._h_to_SchurStar = self._H.module_morphism(
+            self.morph_h_to_SchurStar,
             codomain=self._SchurStar, category=category)
-        self._SchurStar_to_p = self._SchurStar.module_morphism(
-            self.morph_SchurStar_to_p,
-            codomain=self._P, category=category)
+        self._SchurStar_to_h = self._SchurStar.module_morphism(
+            self.morph_SchurStar_to_h,
+            codomain=self._H, category=category)
 
         # Coercion Schur
         # self._Schur_to_m.register_as_coercion()
@@ -205,8 +206,8 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
         self._p_to_Schur.register_as_coercion()
         # self._SchurBar_to_m.register_as_coercion()
         # self._m_to_SchurBar.register_as_coercion()
-        self._SchurStar_to_p.register_as_coercion()
-        self._p_to_SchurStar.register_as_coercion()
+        self._SchurStar_to_h.register_as_coercion()
+        self._h_to_SchurStar.register_as_coercion()
 
         self._SchurBar_to_SchurStar.register_as_coercion()
         self._SchurStar_to_SchurBar.register_as_coercion()
@@ -290,6 +291,7 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
         the_prod = reduce(operator.mul, all_monos, 1)
         return the_prod
 
+    @cached_method
     def morph_h_to_m(self, spart):
         """Return the expansion of h(spart) on the monomial basis."""
         M = self._M
@@ -311,6 +313,7 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
         the_prod = reduce(operator.mul, homos, 1)
         return the_prod
 
+    @cached_method
     def morph_e_to_m(self, spart):
         """Return the expansion of e(spart) on the monomial basis."""
         M = self._M
@@ -328,6 +331,7 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
         the_prod = reduce(operator.mul, mono_list, 1)
         return the_prod
 
+    @cached_method
     def morph_h_to_p(self, spart):
         """Convert h_Lambda to powersums."""
         """
@@ -494,25 +498,25 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
 
         return sSchur_expr
 
-    def morph_p_to_SchurStar(self, spart):
+    def morph_h_to_SchurStar(self, spart):
         """Return the Schur expansion of p[spart]."""
         SStar = self._SchurStar
         stdS = self._stdSchur
-        stdP = self._stdP
+        stdH = self._stdH
         # The idea here is that p_\Lambda = p_\Lambda^a * p_\Lambda^s
         # and p_Lambda^s can be converted to standard Schur function
         # using standard Sage Libraries
-        ptildes = list(spart[0])
+        htildes = list(spart[0])
 
-        # The symmetric part is dealt with built in Schur functions
-        psym = Partition(list(spart[1]))
-        schur_dict = stdS(stdP(psym)).monomial_coefficients().items()
+        # The symmetric part is dealt with built-in Schur functions
+        hsym = Partition(list(spart[1]))
+        schur_dict = stdS(stdH(hsym)).monomial_coefficients().items()
         # Convert to SuperSchur
         schur_dict = {_Superpartitions([[], list(part)]): coeff
                       for part, coeff in schur_dict}
         sSchur_expr = SStar.linear_from_dict(schur_dict)
         # Now we use Pieri for the fermionic part
-        for row in ptildes:
+        for row in htildes:
             sSchur_expr = sSchur_expr._htilde_rmul(row)
 
         return sSchur_expr
@@ -530,18 +534,18 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
             for sp_index in range(len(sparts))]
         return p.linear_combination(p_coeff)
 
-    def morph_SchurStar_to_p(self, spart):
+    def morph_SchurStar_to_h(self, spart):
         """Return the powesum expansion of a Schur polynomial."""
-        p = self._P
+        h = self._H
         sector = spart.sector()
         sparts = list(Superpartitions(*sector))
         spart_index = sparts.index(spart)
-        TM = self.TM_SchurStar_to_p(sector)
+        TM = self.TM_SchurStar_to_h(sector)
         sp_line = TM[spart_index]
-        p_coeff = [
-            (p(sparts[sp_index]), sp_line[sp_index])
+        h_coeff = [
+            (h(sparts[sp_index]), sp_line[sp_index])
             for sp_index in range(len(sparts))]
-        return p.linear_combination(p_coeff)
+        return h.linear_combination(h_coeff)
 
     # Schur to Schur
     def morph_SchurBar_to_SchurStar(self, spart):
@@ -608,10 +612,10 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
         return TM
 
     @cached_method
-    def TM_p_to_SchurStar(self, sector):
+    def TM_h_to_SchurStar(self, sector):
         """Return the transition matrix p -> s*."""
         sparts = Superpartitions(*sector)
-        exprs = [self.morph_p_to_SchurStar(spart) for spart in sparts]
+        exprs = [self.morph_h_to_SchurStar(spart) for spart in sparts]
         TM = [
             [expr.coefficient(spart) for spart in sparts]
             for expr in exprs]
@@ -619,9 +623,9 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
         return TM
 
     @cached_method
-    def TM_SchurStar_to_p(self, sector):
+    def TM_SchurStar_to_h(self, sector):
         """Return the transition matrix s* -> p."""
-        TMps = self.TM_p_to_SchurStar(sector)
+        TMps = self.TM_h_to_SchurStar(sector)
         TM = TMps.inverse()
         return TM
 
@@ -635,7 +639,7 @@ class SymSuperfunctionsAlgebra(UniqueRepresentation, Parent):
         TM = [
             [one_expr.coefficient(spart) for spart in Sparts]
             for one_expr in expr]
-        TM = Matrix(TM)
+        TM = Matrix(QQ, TM)
         return TM
 
     @cached_method
